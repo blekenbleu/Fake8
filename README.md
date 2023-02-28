@@ -9,13 +9,13 @@ As noted in [Arduino for STM32 Black 'n Blue Pills, ESP32-S[2,3] ](https://bleke
 - Plugin can log but not process received serial port messages from e.g. from Arduino.
 - Serial data is limited to 7 bits per character.
 
-This `Fake8` SimHub plugin would connect to real (Arduino) device serial port,
+This `Fake8` SimHub plugin connects to (Arduino) device serial ports,
 using 8 bit characters and executing C#,  
 working with SimHub's Custom Serial devices plugin by properties.
 and a **signed** [virtual com0com Null-modem](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html).  
 This leverages the **SimHub Custom Serial devices** plugin user interface,  
 while much of the heavy lifting gets done by `Fake8`.  
-Sadly, `Custom Serial devices` user interface control properties are local
+Sadly, `Custom Serial devices` user interface control properties are local  
 and cannot be accessed by another plugin, such as `Fake8`.  
 Consequently, `Custom Serial devices` must send those control settings via `Fake8` Serial port.  
 Incoming `Fake8` serial data will generally combine Arduino and `Fake8` strings.
@@ -25,8 +25,8 @@ Incoming `Fake8` serial data will generally combine Arduino and `Fake8` strings.
 - 7 lsb of first message character are a command
 - second character is 7-bit data
 - for some commands, that second character 7-bit data is count for appended 7-bit character array of values.  
-  One string application is to echo that string.  
-  One non-string application is to echo that second character.
+  One string command to echoes that string.  
+  One non-string command echoes that second character.
   Another non-string command resets the Arduino run-time sketch.
 - for commands with 1 == second-most significant bit of first message character,  
   3 lsb index Arduino device application-specific settings, such as
