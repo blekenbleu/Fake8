@@ -119,6 +119,7 @@ namespace Fake8plugin
 			Attach(0);
 			Attach(1);
 			Attach(2);
+			string[] namesArray = pluginManager.GetPropertyValue(Ini + "parms")?.ToString().Split(',');
 			string port = pluginManager.GetPropertyValue(Ini + "com")?.ToString();
 
 			if (null == port || 0 == port.Length)
