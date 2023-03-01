@@ -13,11 +13,13 @@ This `Fake8` SimHub plugin connects to (Arduino) device serial ports,
 using 8 bit characters and executing C#,  
 working with SimHub's Custom Serial devices plugin by properties.
 and a **signed** [virtual com0com Null-modem](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html).  
-This leverages the **SimHub Custom Serial devices** plugin user interface,  
-while much of the heavy lifting gets done by `Fake8`.  
+This leverages the **SimHub Custom Serial devices** plugin user interface:  
+![](Fake8.png)  
+... while much of the heavy lifting gets done by this `Fake8` plugin.  
 Sadly, `Custom Serial devices` user interface control properties are local  
 and cannot be accessed by another plugin, such as `Fake8`.  
-Consequently, `Custom Serial devices` must send those control settings via `Fake8` Serial port.  
+Consequently, [the `Custom Serial devices` profile](https://raw.githubusercontent.com/blekenbleu/SimHub-profiles/main/Fake8.shsds)
+ must send those control settings via `Fake8` Serial port.  
 Incoming `Fake8` serial data will generally combine Arduino and `Fake8` strings.
 
 `Fake8` to Arduino will approximate MIDI protocol, with:  
