@@ -26,7 +26,7 @@ Incoming `Fake8` serial data will generally combine Arduino and `Fake8` strings.
 - second character is 7-bit data
 - for some commands, that second character 7-bit data is count for appended 7-bit character array of values.  
   One string command to echoes that string.  
-  One non-string command echoes that second character.
+  One non-string command echoes that second character.  
   Another non-string command resets the Arduino run-time sketch.
 - for commands with 1 == second-most significant bit of first message character,  
   3 lsb index Arduino device application-specific settings, such as
@@ -43,4 +43,54 @@ This supports 80 commands:
 - [learn SerialPort Class](https://learn.microsoft.com/en-us/dotnet/api/system.io.ports.serialport?view=dotnet-plat-ext-7.0)
 - [*instructables* Serial Port Programming With .NET](https://www.instructables.com/Serial-Port-Programming-With-NET/)
 - [Communicate with Serial Port in C#](https://www.c-sharpcorner.com/UploadFile/eclipsed4utoo/communicating-with-serial-port-in-C-Sharp/) *c-sharp corner*
-- [**Signed com0com** Null-modem emulator](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) - [How to use and configure](https://com0com.sourceforge.net/doc/UsingCom0com.pdf)
+- [**Signed com0com** Null-modem emulator](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) - Link for [Installing;&nbsp; FAQs](https://raw.githubusercontent.com/paulakg4/com0com/master/ReadMe)
+
+## Problems encountered
+- SourceForge's `com0com` virtual null modem package **does not work on recent Windows 10 versions**.
+   - get [Pete Batard's](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) **signed** [`com0com` driver](https://files.akeo.ie/blog/com0com.7z).
+   - an alternative `may be` [test-signing](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/the-testsigning-boot-configuration-option) the SourceForge `com0com` driver.
+- Trying to use `com0com` virtual COM ports in C# **fails** *unless its PortName begins with* `COM`.  
+    - Free 'busy' COM port numbers using [COM Name Arbiter Tool](https://www.uwe-sieber.de/misc_tools_e.html#com_ports)  
+       Run as Adminstrator, uncheck wanted and currently unused ports:  
+       ![](Arbiter.png)  
+## Configure a `com0com` virtual null modem
+- Run as Adminstrator `com0com\setupc.exe`: &nbsp;   (see [com0com ReadMe](https://raw.githubusercontent.com/paulakg4/com0com/master/ReadMe) for instructions)
+```
+command> change CNCB0 PortName=COM2
+       CNCA8 PortName=-
+       CNCB8 PortName=-
+       CNCA0 PortName=FAKE8
+       CNCB0 PortName=SIM8
+change CNCB0 PortName=COM2
+Restarted CNCB0 com0com\port \Device\com0com20
+ComDB: COM2 - logged as "in use"
+command> change CNCB0 ExclusiveMode=yes
+       CNCA8 PortName=-
+       CNCB8 PortName=-
+       CNCA0 PortName=FAKE8
+       CNCB0 PortName=COM2
+change CNCB0 PortName=COM2,ExclusiveMode=yes
+Restarted CNCB0 com0com\port \Device\com0com20
+command> change CNCA0 PortName=COM8
+       CNCA8 PortName=-
+       CNCB8 PortName=-
+       CNCA0 PortName=FAKE8
+change CNCA0 PortName=COM8
+Restarted CNCA0 com0com\port \Device\com0com10
+       CNCB0 PortName=COM2,ExclusiveMode=yes
+ComDB: COM8 - logged as "in use"
+command> change CNCA0 PlugInMode=yes
+       CNCA8 PortName=-
+       CNCB8 PortName=-
+       CNCA0 PortName=COM8
+change CNCA0 PortName=COM8,PlugInMode=yes
+Restarted CNCA0 com0com\port \Device\com0com10
+       CNCB0 PortName=COM2,ExclusiveMode=yes
+command> list
+       CNCA8 PortName=-
+       CNCB8 PortName=-
+       CNCA0 PortName=COM8,PlugInMode=yes
+       CNCB0 PortName=COM2,ExclusiveMode=yes
+```
+Seemingly, `PlugInMode=yes` and `ExclusiveMode=yes` make no difference...
+

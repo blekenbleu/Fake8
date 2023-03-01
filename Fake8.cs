@@ -1,6 +1,7 @@
 ﻿using GameReaderCommon;
 using SimHub.Plugins;
 using System;
+using System.IO;
 using System.IO.Ports;
 using System.Threading;
 
@@ -18,6 +19,8 @@ namespace Fake8plugin
 	public class Fake8 : IPlugin, IDataPlugin
 	{
 		internal MysterySettings Settings;
+		internal static readonly string Ini = "DataCorePlugin.ExternalScript.F8"; // configuration source
+
 
 		/// <summary>
 		/// wraps SimHub.Logging.Current.Info() with prefix
@@ -48,6 +51,17 @@ namespace Fake8plugin
 					break;
 			}
 		}
+
+		private void Sports(string n)
+		{
+			string s = $"Init() {n};  InitCount:  {++Settings.CCvalue[2]};  available serial ports:";
+
+			foreach (string p in SerialPort.GetPortNames())
+				s += "\n\t" + p;
+
+			Info(s);
+		}
+			
 		/// <summary>
 		/// Instance of the current plugin manager
 		/// </summary>
@@ -91,6 +105,8 @@ namespace Fake8plugin
 			this.SaveCommonSettings("GeneralSettings", Settings);
 		}
 
+		static SerialPort Custom;
+
 		/// Called at SimHub start then after game changes
 		/// </summary>
 		/// <param name="pluginManager"></param>
@@ -98,19 +114,28 @@ namespace Fake8plugin
 		{
 
 			now = new byte[] { 0,0,0 };
-
 // Load settings
 			Settings = this.ReadCommonSettings<MysterySettings>("GeneralSettings", () => new MysterySettings());
 			Attach(0);
 			Attach(1);
 			Attach(2);
+			string port = pluginManager.GetPropertyValue(Ini + "com")?.ToString();
 
-			string s = $"Init() InitCount:  {++Settings.CCvalue[2]};  available serial ports:";
+			if (null == port || 0 == port.Length)
+				Sports(Ini + "com missing");
+			Custom = new SerialPort(port, 9600);
+			try
+			{
+				Custom.PortName = port;
+				Custom.Open();
+				Info("Init(): Found "+port);
+			}
+			catch (Exception ex)
+			{
+				Sports(port + " Open() failed.  " + ex.Message);
+			}
+			Custom.Close();
 
-			foreach (string p in SerialPort.GetPortNames())
-				s += "\n\t" + p;
-
-			Info(s);
 			Settings.CCvalue[1] = Settings.CCvalue[1];								// matters in MIDIio; not here..??
 		}																			// Init()
 	}

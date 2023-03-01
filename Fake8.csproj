@@ -33,7 +33,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <ProjectView>ShowAllFiles</ProjectView>
-    <Description>SimHub plugin to test AttachDelegate() of ReadCommonSettings() array[]</Description>
+    <Description>SimHub plugin to send 8-bit serial data</Description>
     <AssemblyVersion>0.0.1.0</AssemblyVersion>
     <FileVersion>0.0.1.0</FileVersion>
     <Version>0.0.1</Version>
@@ -81,6 +81,11 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="WindowsBase" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="NCalcScripts\F8.ini">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
   </Target>
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
@@ -88,5 +93,6 @@
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
   </Target>
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy NCalcScripts\F8.ini ..\..\NCalcScripts\" />
   </Target>
 </Project>
