@@ -16,11 +16,12 @@ and a **signed** [virtual com0com Null-modem](https://pete.akeo.ie/2011/07/com0c
 This leverages the **SimHub Custom Serial devices** plugin user interface:  
 ![](Fake8.png)  
 ... while much of the heavy lifting gets done by this `Fake8` plugin.  
-Sadly, `Custom Serial devices` user interface control properties are local  
-and cannot be accessed by another plugin, such as `Fake8`.  
+Sadly, `Custom Serial devices` user interface Settings are local to that plugin
+and inaccessible by `Fake8`.  
 Consequently, [the `Custom Serial devices` profile](https://raw.githubusercontent.com/blekenbleu/SimHub-profiles/main/Fake8.shsds)
  must send those control settings via `Fake8` Serial port.  
-Incoming `Fake8` serial data will generally combine Arduino and `Fake8` strings.
+Overhead is minimized by using simple NCalc expressions to generate setting change messages.  
+Incoming `Fake8` serial data to SimHub's **Custom Serial** plugin will generally combine Arduino and `Fake8` strings.
 
 `Fake8` to Arduino will approximate MIDI protocol, with:  
 - only first message 8-bit characters having msb ==1
