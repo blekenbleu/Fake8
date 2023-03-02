@@ -8,8 +8,8 @@ using System.Threading;
 namespace Fake8plugin
 {
 	// these must be public
-    public class MysterySettings // saved while plugin restarts
-    {
+	public class MysterySettings // saved while plugin restarts
+	{
 		public byte[] CCvalue { get; set; } = { 0,0,0 };
 	}
 
@@ -33,6 +33,9 @@ namespace Fake8plugin
 
 		private byte[] now;
 
+		/// <summary>
+		/// create SimHub properties
+		/// </summary> 
 		private void Attach(byte index)
 		{
 			switch (index)
@@ -52,6 +55,36 @@ namespace Fake8plugin
 			}
 		}
 
+		static SerialPort Custom;		// com0com to SimHub Custom Serial device
+
+		/// <summary>
+		/// add a delegate to act on SerialDataReceived event
+		/// </summary>
+		delegate void EchoCallback(string msg);
+		string /* Incoming = String.Empty, */ EventMsg = String.Empty;
+
+		private void MsgEcho(string msg)		// actual delegate
+		{
+			Custom.Write(msg);
+		}
+		private void Fake8receiver(object sender, SerialDataReceivedEventArgs e)
+		{
+			if (Custom.IsOpen)
+				try
+				{
+					if (String.Empty != (EventMsg = Custom.ReadExisting()))
+						MsgEcho(EventMsg);
+//						this.BeginInvoke(new EchoCallback(MsgEcho), new object[] { EventMsg });
+				}
+				catch
+				{
+					Info("Fake8receiver():  " + e.ToString());
+				}
+		}
+
+		/// <summary>
+		/// report available serial ports
+		/// </summary> 
 		private void Sports(string n)
 		{
 			string s = $"Init() {n};  InitCount:  {++Settings.CCvalue[2]};  available serial ports:";
@@ -78,6 +111,7 @@ namespace Fake8plugin
 		/// <param name="data">Current game data, including current and previous data frame.</param>
 		public void DataUpdate(PluginManager pluginManager, ref GameData data)
 		{
+			// scan for SimHub property changes, send commands to Arduino
 			return;
 		}
 
@@ -103,9 +137,16 @@ namespace Fake8plugin
 			Settings.CCvalue[0] = 5;
 			Settings.CCvalue[1] = 6;
 			this.SaveCommonSettings("GeneralSettings", Settings);
-		}
 
-		static SerialPort Custom;
+			if (Custom.IsOpen)
+				try
+				{
+					Custom.Close();
+					Custom.DiscardInBuffer();
+					Custom.DiscardOutBuffer();
+				}
+				catch {/* ignore */}
+		}
 
 		/// Called at SimHub start then after game changes
 		/// </summary>
@@ -119,7 +160,12 @@ namespace Fake8plugin
 			Attach(0);
 			Attach(1);
 			Attach(2);
-			string[] namesArray = pluginManager.GetPropertyValue(Ini + "parms")?.ToString().Split(',');
+			string[] namesArray;
+
+			string parms = pluginManager.GetPropertyValue(Ini + "parms")?.ToString();
+			if (null != parms && 0 < parms.Length)
+				namesArray = parms.Split(',');
+			else Info("Init():  null " + Ini + "parms");
 			string port = pluginManager.GetPropertyValue(Ini + "com")?.ToString();
 
 			if (null == port || 0 == port.Length)
@@ -127,6 +173,7 @@ namespace Fake8plugin
 			Custom = new SerialPort(port, 9600);
 			try
 			{
+				Custom.DataReceived += Fake8receiver;		// set up the event before opening the serial port
 				Custom.PortName = port;
 				Custom.Open();
 				Info("Init(): Found "+port);
@@ -135,7 +182,6 @@ namespace Fake8plugin
 			{
 				Sports(port + " Open() failed.  " + ex.Message);
 			}
-			Custom.Close();
 
 			Settings.CCvalue[1] = Settings.CCvalue[1];								// matters in MIDIio; not here..??
 		}																			// Init()

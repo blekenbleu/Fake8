@@ -20,7 +20,9 @@ Sadly, `Custom Serial devices` user interface Settings are local to that plugin
 and inaccessible by `Fake8`.  
 Consequently, [the `Custom Serial devices` profile](https://raw.githubusercontent.com/blekenbleu/SimHub-profiles/main/Fake8.shsds)
  must send those control settings via `Fake8` Serial port.  
-Overhead is minimized by using simple NCalc expressions to generate setting change messages.  
+Overhead is minimized by using simple [NCalc](https://github.com/SHWotever/ncalc) expressions to generate setting change messages.  
+Unlike JavaScript, NCalc Update messages repeat even if unchanged unless explicitly conditional
+ by [change()](https://github.com/SHWotever/SimHub/wiki/NCalc-scripting).  
 Incoming `Fake8` serial data to SimHub's **Custom Serial** plugin will generally combine Arduino and `Fake8` strings.
 
 `Fake8` to Arduino will approximate MIDI protocol, with:  
@@ -40,6 +42,11 @@ This supports 80 commands:
    - 64 for string and other purposes.
 
 ### potentially useful C# serial port references
+
+- [Serial Port Communication](https://www.codeproject.com/Tips/361285/Serial-Port-Communication) *codeproject.com* "Although the code is self explanatory, I will explain little."
+- [Serial Comms in C# for Beginners](https://www.codeproject.com/Articles/678025/Serial-Comms-in-Csharp-for-Beginners) *codeproject.com* useful, ignoring hardware pin handling
+- [Improving the Performance of Serial Ports Using C#](https://www.codeproject.com/Articles/110670/Improving-the-Performance-of-Serial-Ports-Using-C) *codeproject.com*
+- [Arduino, C#, and Serial Interface](https://www.codeproject.com/Articles/473828/Arduino-Csharp-and-Serial-Interface) *codeproject.com* 
 - [Close Serial COM Port safely in C#](https://www.codeproject.com/Questions/281222/Close-Serial-COM-Port-safely-in-Csharp) *codeproject.com*
 - [Top 5 SerialPort Tips](https://learn.microsoft.com/en-us/archive/blogs/bclteam/top-5-serialport-tips-kim-hamilton)
 - [SerialPort Encoding](https://learn.microsoft.com/en-us/archive/blogs/bclteam/serialport-encoding-ryan-byington)
@@ -95,5 +102,4 @@ command> list
        CNCA0 PortName=COM8,PlugInMode=yes
        CNCB0 PortName=COM2,ExclusiveMode=yes
 ```
-Seemingly, `PlugInMode=yes` and `ExclusiveMode=yes` make no difference...
-
+Seemingly, `PlugInMode=yes` and `ExclusiveMode=yes` make no difference..
