@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.IO.Ports;
 using System.Threading;
+using System.Timers;
 
 namespace Fake8plugin
 {
@@ -38,10 +39,10 @@ namespace Fake8plugin
 			switch (index)
 			{
 				case 0:
-					this.AttachDelegate("Fake8.Open()?", () => Settings.Value[0]);
+					this.AttachDelegate("Fake8.Value[0]", () => Settings.Value[0]);
 					break;
 				case 1:
-					this.AttachDelegate("Fake8.got?", () => Settings.Value[1]);
+					this.AttachDelegate("Fake8.Value[1]", () => Settings.Value[1]);
 					break;
 				case 2:
 					this.AttachDelegate("Fake8.InitCount", () => Settings.Value[2]);
@@ -53,7 +54,7 @@ namespace Fake8plugin
 					this.AttachDelegate("Fake8.ArduinoMsg", () => Traffic[1]);
 					break;
 				case 5:
-					this.AttachDelegate("Fake8.InvalidMsg", () => Traffic[2]);
+					this.AttachDelegate("Fake8.PluginMsg", () => Traffic[2]);
 					break;
 				default:
 					Info($"Attach({index}): unsupported value");
@@ -64,6 +65,29 @@ namespace Fake8plugin
 		private byte[] now;
 		private string[] Traffic;
 		private SerialPort CustomSerial, Arduino;		// CustomSerial is com0com to SimHub Custom Serial device
+
+		private System.Timers.Timer aTimer;
+		private void OnTimedEvent(object source, ElapsedEventArgs e)
+		{
+			Arduino.Open();
+			Arduino.DtrEnable = Arduino.RtsEnable = true;				// tickle the Arduino
+			CustomSerial.Write(Traffic[2] = "[Arduino reset?]\n");
+		}
+		/// <summary>
+		/// reset the Arduino
+		/// </summary>
+		private bool Reset(uint msec)
+		{
+            aTimer = new System.Timers.Timer((float)msec)
+            {
+                AutoReset = false                   					// one time
+            };
+            aTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
+			Arduino.DtrEnable = Arduino.RtsEnable = false;				// tickle the Arduino
+			Arduino.Close();
+			aTimer.Enabled = true;										// start the clock
+			return false;
+		}
 
 		/// <summary>
 		/// write byte pairs to Arduino based on Custom Serial messages
@@ -100,10 +124,11 @@ namespace Fake8plugin
 			if (0 == parms.Length)
 				return false;
 
+			uint value;
 			string[] f8 = parms.Split('=');
 
 			if (2 == f8.Length)
-				now[1] = (byte)(127 & byte.Parse(f8[1]));
+				now[1] = (byte)(127 & (value = uint.Parse(f8[1])));
 			else
 			{
 				Traffic[2] = $"Parse(): invalid parm '{parms}'";
@@ -135,6 +160,8 @@ namespace Fake8plugin
 				case "f7":
 					now[0] = 0x97;
 					break;
+				case "f8":
+					return Reset(value);
 				default:
 					Traffic[2] = $"Parse(default): unsupported parm '{parms}'";
 					return false;
@@ -146,13 +173,10 @@ namespace Fake8plugin
 		{
 			if (Arduino.IsOpen)
 			{
-				Settings.Value[0] = 1;
 				try
 				{
-					Settings.Value[1] = 0;
 					if (String.Empty != (Traffic[1] = Arduino.ReadExisting()) && CustomSerial.IsOpen)
 					{
-						Settings.Value[1] = 1;
 						CustomSerial.Write(' ' + Traffic[1]);
 					}
 				}
@@ -161,7 +185,6 @@ namespace Fake8plugin
 					Info("Pillreceiver():  " + e.ToString());
 				}
 			}
-			else Settings.Value[0] = 0;
 		}
 
 		/// <summary>
