@@ -13,7 +13,7 @@ namespace Fake8plugin
 		public byte[] CCvalue { get; set; } = { 0,0,0 };
 	}
 
-	[PluginDescription("Fake8 0 value properties from ReadCommonSettings()")]
+	[PluginDescription("Fake8 echo SimHub Custom Serial to Arduino;  Arduino (hex) to SimHub Custom Serial via com0com")]
 	[PluginAuthor("blekenbleu")]
 	[PluginName("Fake8")]
 	public class Fake8 : IPlugin, IDataPlugin
@@ -32,6 +32,7 @@ namespace Fake8plugin
 		}
 
 		private byte[] now;
+		private string[] Traffic;
 
 		/// <summary>
 		/// create SimHub properties
@@ -41,13 +42,19 @@ namespace Fake8plugin
 			switch (index)
 			{
 				case 0:
-					this.AttachDelegate("expect5", () => Settings.CCvalue[0]);
+					this.AttachDelegate("Fake8.Open()?", () => Settings.CCvalue[0]);
 					break;
 				case 1:
-					this.AttachDelegate("expect6", () => Settings.CCvalue[1]);
+					this.AttachDelegate("Fake8.got?", () => Settings.CCvalue[1]);
 					break;
 				case 2:
 					this.AttachDelegate("Fake8.InitCount", () => Settings.CCvalue[2]);
+					break;
+				case 3:
+					this.AttachDelegate("Fake8.CustomMsg", () => Traffic[0]);
+					break;
+				case 4:
+					this.AttachDelegate("Fake8.ArduinoMsg", () => Traffic[1]);
 					break;
 				default:
 					Info($"Attach({index}): unsupported value");
@@ -55,26 +62,15 @@ namespace Fake8plugin
 			}
 		}
 
-		static SerialPort Custom;		// com0com to SimHub Custom Serial device
+		static SerialPort Custom, Arduino;		// Custom is com0com to SimHub Custom Serial device
 
-		/// <summary>
-		/// add a delegate to act on SerialDataReceived event
-		/// </summary>
-		delegate void EchoCallback(string msg);
-		string /* Incoming = String.Empty, */ EventMsg = String.Empty;
-
-		private void MsgEcho(string msg)		// actual delegate
-		{
-			Custom.Write(msg);
-		}
 		private void Fake8receiver(object sender, SerialDataReceivedEventArgs e)
 		{
 			if (Custom.IsOpen)
 				try
 				{
-					if (String.Empty != (EventMsg = Custom.ReadExisting()))
-						MsgEcho(EventMsg);
-//						this.BeginInvoke(new EchoCallback(MsgEcho), new object[] { EventMsg });
+					if (String.Empty != (Traffic[0] = Custom.ReadExisting()) && Arduino.IsOpen)
+						Arduino.Write(Traffic[0]);
 				}
 				catch
 				{
@@ -82,12 +78,46 @@ namespace Fake8plugin
 				}
 		}
 
+		private char[] buffer;
+		private void Pillreceiver(object sender, SerialDataReceivedEventArgs e)
+		{
+			if (Arduino.IsOpen)
+			{
+				Settings.CCvalue[0] = 1;
+				try
+				{
+					int count;
+					bool got = false;
+
+					Settings.CCvalue[1] = 0;
+					while (0 < (count = Arduino.BytesToRead))
+					{
+						int now = (count > buffer.Length) ? buffer.Length : count;
+						now = Arduino.Read(buffer, 0, now);
+						if (0 < now)
+						{
+							got = true;
+							Settings.CCvalue[1] = 1;
+							Custom.Write(Traffic[1] = (new string(buffer).Substring(0, now)));
+						}
+					}
+					if (got)
+						Custom.Write("\n");
+				}
+				catch
+				{
+					Info("Pillreceiver():  " + e.ToString());
+				}
+			}
+			else Settings.CCvalue[0] = 0;
+		}
+
 		/// <summary>
 		/// report available serial ports
 		/// </summary> 
 		private void Sports(string n)
 		{
-			string s = $"Init() {n};  InitCount:  {++Settings.CCvalue[2]};  available serial ports:";
+			string s = $"Open(): {n};  available serial ports:";
 
 			foreach (string p in SerialPort.GetPortNames())
 				s += "\n\t" + p;
@@ -116,6 +146,21 @@ namespace Fake8plugin
 		}
 
 		/// <summary>
+		/// Called by End() to close a serial port
+		/// </summary>
+		private void Close(SerialPort serial)
+		{
+			if (serial.IsOpen)
+				try
+				{
+					serial.Close();
+					serial.DiscardInBuffer();
+					serial.DiscardOutBuffer();
+				}
+				catch {/* ignore */}
+		}
+
+		/// <summary>
 		/// Called at plugin manager stop, close/dispose anything needed here !
 		/// Plugins are rebuilt at game change
 		/// </summary>
@@ -137,50 +182,80 @@ namespace Fake8plugin
 			Settings.CCvalue[0] = 5;
 			Settings.CCvalue[1] = 6;
 			this.SaveCommonSettings("GeneralSettings", Settings);
-
-			if (Custom.IsOpen)
-				try
-				{
-					Custom.Close();
-					Custom.DiscardInBuffer();
-					Custom.DiscardOutBuffer();
-				}
-				catch {/* ignore */}
+			Close(Custom);
+			Close(Arduino);
 		}
 
+		/// <summary>
+		/// Called by Init() to open a serial port
+		/// </summary>
+		private void Open(SerialPort serial, string port, SerialDataReceivedEventHandler f)
+		{	
+			try
+			{
+				serial.DataReceived += f;		// set up the event before opening the serial port
+				serial.PortName = port;
+				serial.Open();
+				Info("Open(): Found " + port);
+			}
+			catch (Exception ex)
+			{
+				Sports($"Open({port}) failed.  " + ex.Message);
+			}
+		}
+
+		private void OpenPill(string port)
+		{	
+			Arduino = new SerialPort(port, 9600);
+			try
+			{
+				Arduino.DataReceived +=Pillreceiver;		// set up the event before opening the Arduino port
+				Arduino.PortName = port;
+//				Arduino.RtsEnable = true;
+				Arduino.DtrEnable = true;					// default without this was nothing received
+//				Arduino.Handshake = Handshake.None;
+				Arduino.Open();
+				Info("OpenPill(): Found " + port);
+			}
+			catch (Exception ex)
+			{
+				Sports($"OpenPill({port}) failed.  " + ex.Message);
+			}
+		}
+
+		/// <summary>
 		/// Called at SimHub start then after game changes
 		/// </summary>
 		/// <param name="pluginManager"></param>
 		public void Init(PluginManager pluginManager)
 		{
+			string[] parmArray;
+			buffer = new char[16];
 
+			Traffic = new string[] {"nothing yet", "still waiting"};
 			now = new byte[] { 0,0,0 };
+
 // Load settings
 			Settings = this.ReadCommonSettings<MysterySettings>("GeneralSettings", () => new MysterySettings());
-			Attach(0);
-			Attach(1);
-			Attach(2);
-			string[] namesArray;
+			Info($"Init().InitCount:  {++Settings.CCvalue[2]}");
+			for (byte i = 0; i < 5; i++)
+				Attach(i);
 
 			string parms = pluginManager.GetPropertyValue(Ini + "parms")?.ToString();
 			if (null != parms && 0 < parms.Length)
-				namesArray = parms.Split(',');
+				parmArray = parms.Split(',');
 			else Info("Init():  null " + Ini + "parms");
 			string port = pluginManager.GetPropertyValue(Ini + "com")?.ToString();
+			string pill = pluginManager.GetPropertyValue(Ini + "pill")?.ToString();
 
 			if (null == port || 0 == port.Length)
-				Sports(Ini + "com missing");
-			Custom = new SerialPort(port, 9600);
-			try
+				Sports(Ini + "Custom Serial 'F8com' missing from F8.ini");
+			else
 			{
-				Custom.DataReceived += Fake8receiver;		// set up the event before opening the serial port
-				Custom.PortName = port;
-				Custom.Open();
-				Info("Init(): Found "+port);
-			}
-			catch (Exception ex)
-			{
-				Sports(port + " Open() failed.  " + ex.Message);
+				Open(Custom = new SerialPort(port, 9600), port, Fake8receiver);
+				if (null == pill || 0 == pill.Length)
+					Sports(Ini + "Arduino Serial 'F8pill' missing from F8.ini");
+				else OpenPill(pill);
 			}
 
 			Settings.CCvalue[1] = Settings.CCvalue[1];								// matters in MIDIio; not here..??

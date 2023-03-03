@@ -103,3 +103,6 @@ command> list
        CNCB0 PortName=COM2,ExclusiveMode=yes
 ```
 Seemingly, `PlugInMode=yes` and `ExclusiveMode=yes` make no difference..
+
+### tricks
+- `Arduino.DtrEnable = true;` is required for reading from Arduino, but not for com0com.
