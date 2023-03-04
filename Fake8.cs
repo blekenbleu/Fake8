@@ -48,13 +48,22 @@ namespace Fake8plugin
 					this.AttachDelegate("Fake8.InitCount", () => Settings.Value[2]);
 					break;
 				case 3:
-					this.AttachDelegate("Fake8.CustomMsg", () => Traffic[0]);
+					this.AttachDelegate("Fake8.CustomSerial.ReadExisting()", () => Traffic[0]);
 					break;
 				case 4:
-					this.AttachDelegate("Fake8.ArduinoMsg", () => Traffic[1]);
+					this.AttachDelegate("Fake8.Arduino.ReadExisting", () => Traffic[1]);
 					break;
 				case 5:
 					this.AttachDelegate("Fake8.PluginMsg", () => Traffic[2]);
+					break;
+				case 6:
+					this.AttachDelegate("Fake8.f8[0]", () => f8[0]);
+					break;
+				case 7:
+					this.AttachDelegate("Fake8.f8[1]", () => f8[1]);
+					break;
+				case 8:
+					this.AttachDelegate("Fake8.Arduino.Write()", () => Traffic[3]);
 					break;
 				default:
 					Info($"Attach({index}): unsupported value");
@@ -71,7 +80,7 @@ namespace Fake8plugin
 		{
 			Arduino.Open();
 			Arduino.DtrEnable = Arduino.RtsEnable = true;				// tickle the Arduino
-			CustomSerial.Write(Traffic[2] = "[Arduino reset?]\n");
+			CustomSerial.Write(Traffic[2] = "CustomSerial.Write([Arduino reset?])\n");
 		}
 		/// <summary>
 		/// reset the Arduino
@@ -107,7 +116,11 @@ namespace Fake8plugin
 
 						for (byte i = 0; i < parm.Length; i++)
 							if (Parse(parm[i]))
+							{
 								Arduino.Write(now, 0, 2);
+								Traffic[3] = $"Arduino.Write(now[] = '{now[0]:X},{now[1]:X}')";
+							}
+							else Traffic[2] = $"Parse({parm[i]}) returned false";
 					}
 				}
 				catch
@@ -138,14 +151,15 @@ namespace Fake8plugin
 
 		/// <summary>
 		/// match names in Custom Serial messages; pick out values
-		/// </summary> 
+		/// </summary>
+		private string[] f8;  
 		private bool Parse(string parms)
 		{
 			if (0 == parms.Length)
 				return false;
 
 			uint value;
-			string[] f8 = parms.Split('=');
+			f8 = parms.Split('=');
 
 			if (2 == f8.Length)
 				now[1] = (byte)(127 & (value = uint.Parse(f8[1])));
@@ -277,8 +291,8 @@ namespace Fake8plugin
 				serial.DataReceived += f;				// set up the event before opening the serial port
 				serial.PortName = port;
 				serial.DtrEnable = true;				// nothing received from Arduino without this
-//				serial.RtsEnable = true;
-//				serial.Handshake = Handshake.None;
+  				serial.RtsEnable = true;
+  				serial.Handshake = Handshake.None;
 				serial.Open();
 				Info($"Open({port}): success!");
 			}
@@ -296,7 +310,8 @@ namespace Fake8plugin
 		{
 			string[] parmArray;
 
-			Traffic = new string[] {"nothing yet", "still waiting", "so far, so good"};
+			Traffic = new string[] {"nothing yet", "still waiting", "so far, so good", "watch this space"};
+			f8 = new string[] { "f?", "v?" };
 			now = new byte[] { 0,0,0 };
 			word = new uint[] { 0,0 };
 			old = "old";
@@ -305,7 +320,7 @@ namespace Fake8plugin
 
 			Settings = this.ReadCommonSettings<FakeSettings>("GeneralSettings", () => new FakeSettings());
 			Info($"Init().InitCount:  {++Settings.Value[2]}");
-			for (byte i = 0; i < 6; i++)
+			for (byte i = 2; i < 9; i++)
 				Attach(i);
 
 			string parms = pluginManager.GetPropertyValue(Ini + "parms")?.ToString();
@@ -324,8 +339,6 @@ namespace Fake8plugin
 					Sports(Ini + "Arduino Serial 'F8pill' missing from F8.ini");
 				else Open(Arduino = new SerialPort(pill, 9600), pill, Pillreceiver);
 			}
-
-			Settings.Value[1] = Settings.Value[1];								// matters in MIDIio; not here..??
 		}																			// Init()
 	}
 }
