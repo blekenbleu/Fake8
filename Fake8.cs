@@ -11,7 +11,7 @@ namespace Fake8plugin
 	// these must be public
 	public class FakeSettings // saved while plugin restarts
 	{
-		public byte[] Value { get; set; } = { 0,0,0 };
+		public byte[] Value { get; set; } = { 0,0,0,0,0,0,0,0,0,0 };
 	}
 
 	[PluginDescription("Fake8 process SimHub Custom Serial for Arduino;  echo Arduino (hex) to SimHub Custom Serial via com0com")]
@@ -116,6 +116,26 @@ namespace Fake8plugin
 				}
 		}
 
+		private bool Fbyte(byte n)
+		{
+			Traffic[2] = $"Fbyte({n}): Settings.Value[{n}] = {Settings.Value[n]}; now[1] = {now[1]}";
+			if (Settings.Value[n] == now[1])
+				return false;
+			Settings.Value[n] = now[1];
+			now[0] = (byte)(n + 0x90);
+			return true;
+		}
+
+		private uint[] word;
+		private bool Fword(byte n, uint v)
+		{
+			now[0] = (byte)((n * 5) + 0x90);
+			if (word[n] == v)
+				return false;
+			word[n] = v;
+			return true;			// for now; need a higher precision 2-byte option
+		}
+
 		/// <summary>
 		/// match names in Custom Serial messages; pick out values
 		/// </summary> 
@@ -137,36 +157,29 @@ namespace Fake8plugin
 			switch (f8[0])
 			{
 				case "f0":
-					now[0] = 0x90;
-					break;
+					return Fword(0, value);
 				case "f1":
-					now[0] = 0x91;
-					break;
+					return Fbyte(1);
 				case "f2":
-					now[0] = 0x92;
-					break;
+					return Fbyte(2);
 				case "f3":
-					now[0] = 0x93;
-					break;
+					return Fbyte(3);
 				case "f4":
-					now[0] = 0x94;
-					break;
+					return Fbyte(4);
 				case "f5":
-					now[0] = 0x95;
-					break;
+					return Fword(1, value);
 				case "f6":
-					now[0] = 0x96;
-					break;
+					return Fbyte(6);
 				case "f7":
-					now[0] = 0x97;
-					break;
+					return Fbyte(7);
 				case "f8":
+					return Fbyte(8);
+				case "f9":
 					return Reset(value);
 				default:
 					Traffic[2] = $"Parse(default): unsupported parm '{parms}'";
 					return false;
 			}
-			return true;
 		}
 		
 		private void Pillreceiver(object sender, SerialDataReceivedEventArgs e)
@@ -285,6 +298,7 @@ namespace Fake8plugin
 
 			Traffic = new string[] {"nothing yet", "still waiting", "so far, so good"};
 			now = new byte[] { 0,0,0 };
+			word = new uint[] { 0,0 };
 			old = "old";
 
 // Load settings
