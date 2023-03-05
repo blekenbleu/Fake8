@@ -23,9 +23,6 @@ namespace Fake8plugin
 		internal FakeSettings Settings;
 		internal static readonly string Ini = "DataCorePlugin.ExternalScript.F8"; // configuration source file
 
-		// add event to class
-		public event SerialDataReceivedEventHandler LineReceived;
-
 		/// <summary>
 		/// wraps SimHub.Logging.Current.Info() with prefix
 		/// </summary>
