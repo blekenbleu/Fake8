@@ -41,9 +41,12 @@ This supports 80 commands:
    - 16 for application-specific settings with 3-bit indexing.
    - 64 for string and other purposes.
 
-## Status 3 Mar 2023
+### Status 3 Mar 2023
 - plugin communicates both with SimHub Custom Serial plugin (via com0com) and STM32 Arduino
    - current Arduino sketch merely echos ASCII hex for received bytes, confirming 8-bit communications
+### Status 5 Mar 2023
+- hiccup with processing on SimHub Custom Serial receive thread;&nbsp; added delegate back to main thread.
+  Unable to find a *good* example;&nbsp many add IMO superfluous threading and events.
 - next step will be adding configurable PWM to the Arduino sketch  
   for e.g. PC fans and [**Direct Drive harness tension**](https://github.com/blekenbleu/Direct-Drive-harness-tension-tester) testing.
 
