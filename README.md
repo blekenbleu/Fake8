@@ -1,6 +1,6 @@
 
 ---
-Fake8:&nbsp; proposed SimHub 8-bit serial plugin
+Fake8:&nbsp; SimHub 8-bit helper serial plugin
 ---
 
 As noted in [Arduino for STM32 Black 'n Blue Pills, ESP32-S[2,3] ](https://blekenbleu.github.io/Arduino/),  
@@ -11,9 +11,9 @@ As noted in [Arduino for STM32 Black 'n Blue Pills, ESP32-S[2,3] ](https://bleke
 
 This `Fake8` SimHub plugin connects to (Arduino) device serial ports,
 using 8 bit characters and executing C#,  
-working with SimHub's Custom Serial devices plugin by properties.
-and a **signed** [virtual com0com Null-modem](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html).  
-This leverages the **SimHub Custom Serial devices** plugin user interface:  
+working with SimHub's Custom Serial devices plugin
+via a **signed** [virtual com0com Null-modem](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html).  
+This leverages **SimHub Custom Serial devices** plugin's user interface:  
 ![](Fake8.png)  
 ... while much of the heavy lifting gets done by this `Fake8` plugin.  
 Sadly, `Custom Serial devices` user interface Settings are local to that plugin
@@ -25,29 +25,33 @@ Unlike JavaScript, NCalc Update messages repeat even if unchanged unless explici
  by [change()](https://github.com/SHWotever/SimHub/wiki/NCalc-scripting).  
 Incoming `Fake8` serial data to SimHub's **Custom Serial** plugin will generally combine Arduino and `Fake8` strings.
 
-`Fake8` to Arduino will approximate MIDI protocol, with:  
+`Fake8` to Arduino [8-bit protocol](https://github.com/blekenbleu/Arduino-Blue-Pill/blob/main/8-bit.md) *approximates* MIDI protocol, with:  
 - only first message 8-bit characters having msb ==1
-- 7 lsb of first message character are a command
+- 3 msb of first message character are a command type
 - second character is 7-bit data
 - for some commands, that second character 7-bit data is count for appended 7-bit character array of values.  
   One string command to echoes that string.  
   One non-string command echoes that second character.  
   Another non-string command resets the Arduino run-time sketch.
 - for commands with 1 == second-most significant bit of first message character,  
-  3 lsb index Arduino device application-specific settings, such as
+  other bits index Arduino device application-specific settings, such as
   - setting **PWM** pin parameters, e.g.:&nbsp; frequency, % range, predistortion, PWM pin number, clock number
 
-This supports 80 commands:
-   - 16 for application-specific settings with 3-bit indexing.
-   - 64 for string and other purposes.
+This supports 73 commands:
+   - 1 single byte reset
+   - 1 2-byte command with 12 data bits
+   - 8 3-byte messages with 16 data bits
+   - 32 2-byte commands with 7 data bits
+   - 31 n-byte commands with second byte count for following bytes
 
 ### Status 3 Mar 2023
 - plugin communicates both with SimHub Custom Serial plugin (via com0com) and STM32 Arduino
-   - current Arduino sketch merely echos ASCII hex for received bytes, confirming 8-bit communications
+   - [current Arduino sketch](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/Blue_ASCII)
+   merely echos ASCII hex for received bytes, confirming 8-bit communications
 ### Status 5 Mar 2023
-- hiccup with processing on SimHub Custom Serial receive thread;&nbsp; added delegate back to main thread.
-  Unable to find a *good* example;&nbsp many add IMO superfluous threading and events.
-- next step will be adding configurable PWM to the Arduino sketch  
+- hiccup with processing on SimHub Custom Serial receive thread;&nbsp; added delegate back to main thread.  
+  Unable to find a *good* example;&nbsp; many add IMO superfluous threading and events.
+- next step will be adding [configurable PWM](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/PWM_FullConfiguration) to the Arduino sketch  
   for e.g. PC fans and [**Direct Drive harness tension**](https://github.com/blekenbleu/Direct-Drive-harness-tension-tester) testing.
 
 ## Problems encountered
