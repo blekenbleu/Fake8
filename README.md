@@ -39,8 +39,8 @@ Incoming `Fake8` serial data to SimHub's **Custom Serial** plugin will generally
 
 This supports 73 commands:
    - 1 single byte reset 0xBF
-   - 1 2-byte command with 12 data bits b'110'
-   - 8 3-byte messages with 16 data bits b'111'
+   - 1 2-byte command with 12 data bits b'110', e.g. PWM %
+   - 8 3-byte messages with 16 data bits b'111', e.g. PWM microseconds * 50
    - 32 2-byte commands with 7 data bits b'100'
    - 31 n-byte commands with second byte count for following bytes b'101'
 

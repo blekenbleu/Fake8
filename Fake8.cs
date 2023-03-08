@@ -233,7 +233,7 @@ namespace Fake8plugin
 		/// </summary>
 		public PluginManager PluginManager { get; set; }
 
-		private Traffic3(byte ct)
+		private void Traffic3(byte ct)
 		{
 			Traffic[3] = $"Arduino.Write(now[] = '{now[0]:X}'";
 			for (byte i = 1; i < ct; i++)
