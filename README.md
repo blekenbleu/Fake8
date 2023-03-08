@@ -54,7 +54,7 @@ This supports 73 commands:
 - next step will be adding [configurable PWM](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/PWM_FullConfiguration) to the Arduino sketch  
   for e.g. PC fans and [**Direct Drive harness tension**](https://github.com/blekenbleu/Direct-Drive-harness-tension-tester) testing.
 ### Status 8 Mar 2023
-- skeletal [PWM_FullConfiguration](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/PWM_FullConfiguration sketch implemented, along with F8reset in `Fake8.cs`  
+- skeletal [PWM_FullConfiguration](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/PWM_FullConfiguration) sketch implemented, along with F8reset in `Fake8.cs`  
 
 ## Problems encountered
 - SourceForge's `com0com` virtual null modem package **does not work on recent Windows 10 versions**.
