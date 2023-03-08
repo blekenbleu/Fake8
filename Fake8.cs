@@ -188,7 +188,7 @@ namespace Fake8plugin
 
 				now[0] = (byte)(n + 0x90);
 				Arduino.Write(now, 0, 2);
-				Traffic[3] = $"Arduino.Write(now[] = '{now[0]:X},{now[1]:X}')";
+				Traffic3(2);
 				return true;
 			}
 
@@ -233,6 +233,14 @@ namespace Fake8plugin
 		/// </summary>
 		public PluginManager PluginManager { get; set; }
 
+		private Traffic3(byte ct)
+		{
+			Traffic[3] = $"Arduino.Write(now[] = '{now[0]:X}'";
+			for (byte i = 1; i < ct; i++)
+				Traffic[3] += $",'{now[0]:X}'";
+			Traffic[3] += ")";
+		}
+
 		/// <summary>
 		/// Called one time per game data update, contains all normalized game data,
 		/// raw data are intentionnally "hidden" under a generic object type (A plugin SHOULD NOT USE IT)
@@ -242,9 +250,19 @@ namespace Fake8plugin
 		/// </summary>
 		/// <param name="pluginManager"></param>
 		/// <param name="data">Current game data, including current and previous data frame.</param>
+		private string reset;
 		public void DataUpdate(PluginManager pluginManager, ref GameData data)
 		{
 			// scan for SimHub property changes, send commands to Arduino
+			string button = pluginManager.GetPropertyValue(Ini + "reset")?.ToString();
+
+			if (0 < button.Length && button != "0" && button != reset)
+			{
+				now[0] = (byte)(0xFB);			// send only if changed and not "0";
+				Arduino.Write(now, 0, 1);
+				Traffic3(1);
+			}
+			reset = button;
 			return;
 		}
 
@@ -318,6 +336,7 @@ namespace Fake8plugin
 			now = new byte[] { 0,0,0 };
 			word = new uint[] { 0,0 };
 			old = "old";
+			reset = "0";
 
 // Load settings, create properties
 

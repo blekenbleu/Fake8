@@ -38,11 +38,11 @@ Incoming `Fake8` serial data to SimHub's **Custom Serial** plugin will generally
   - setting **PWM** pin parameters, e.g.:&nbsp; frequency, % range, predistortion, PWM pin number, clock number
 
 This supports 73 commands:
-   - 1 single byte reset
-   - 1 2-byte command with 12 data bits
-   - 8 3-byte messages with 16 data bits
-   - 32 2-byte commands with 7 data bits
-   - 31 n-byte commands with second byte count for following bytes
+   - 1 single byte reset 0xBF
+   - 1 2-byte command with 12 data bits b'110'
+   - 8 3-byte messages with 16 data bits b'111'
+   - 32 2-byte commands with 7 data bits b'100'
+   - 31 n-byte commands with second byte count for following bytes b'101'
 
 ### Status 3 Mar 2023
 - plugin communicates both with SimHub Custom Serial plugin (via com0com) and STM32 Arduino
@@ -53,6 +53,8 @@ This supports 73 commands:
   Unable to find a *good* example;&nbsp; many add IMO superfluous threading and events.
 - next step will be adding [configurable PWM](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/PWM_FullConfiguration) to the Arduino sketch  
   for e.g. PC fans and [**Direct Drive harness tension**](https://github.com/blekenbleu/Direct-Drive-harness-tension-tester) testing.
+### Status 8 Mar 2023
+- skeletal [PWM_FullConfiguration](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/PWM_FullConfiguration sketch implemented, along with F8reset in `Fake8.cs`  
 
 ## Problems encountered
 - SourceForge's `com0com` virtual null modem package **does not work on recent Windows 10 versions**.
