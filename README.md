@@ -47,6 +47,14 @@ This supports 80 commands:
 - next step will be adding configurable PWM to the Arduino sketch  
   for e.g. PC fans and [**Direct Drive harness tension**](https://github.com/blekenbleu/Direct-Drive-harness-tension-tester) testing.
 
+## Status 9 Mar 2023
+- unable to get both COM ports working robustly in a single plugin.   
+  Simply create properties from Custom Serial port messages in `Fake7` plugin;  
+  then, use those properties in `Fake8` plugin for Arduino.
+  This will not impact game latency, since telemetry will not come thru Custom Serial plugin.
+- look into [building both plugins in a single project](https://stackoverflow.com/questions/3867113/visual-studio-one-project-with-several-dlls-as-output)  
+  [**search results**](https://duckduckgo.com/?q=visual+studio+multiple+%22dlls%22+in+one+solution)
+
 ## Problems encountered
 - SourceForge's `com0com` virtual null modem package **does not work on recent Windows 10 versions**.
    - get [Pete Batard's](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) **signed** [`com0com` driver](https://files.akeo.ie/blog/com0com.7z).
@@ -57,6 +65,7 @@ This supports 80 commands:
        ![](Arbiter.png)  
 - `Arduino.DtrEnable = true;` is required [for C# to read from Arduino](https://forum.arduino.cc/t/serial-communication-with-c-program-serialdatareceivedeventhandler-doesnt-work/108564/3), but not for com0com.
 - Unable to restart Arduino sketch by toggling `Arduino.DtrEnable` and `Arduino.RtsEnable`.
+- Unable to get both COM ports working robustly in a single plugin.
 
 ## Configure a [`com0com` virtual null modem](https://files.akeo.ie/blog/com0com.7z)
 - Run as Adminstrator `com0com\setupc.exe`: &nbsp;   (see [com0com ReadMe](https://raw.githubusercontent.com/paulakg4/com0com/master/ReadMe) for instructions)
