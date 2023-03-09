@@ -66,6 +66,8 @@ This supports 73 commands:
        ![](Arbiter.png)  
 - `Arduino.DtrEnable = true;` is required [for C# to read from Arduino](https://forum.arduino.cc/t/serial-communication-with-c-program-serialdatareceivedeventhandler-doesnt-work/108564/3), but not for com0com.
 - Unable to restart Arduino sketch by toggling `Arduino.DtrEnable` and `Arduino.RtsEnable`.
+- had to launch com0com `setupc.exe` and run `command> reload` to unjam fake8.cs `CustomSerial.Write(Traffic[1]);`
+- sharing data among serial ports in C# seemingly defies explanation
 
 ## Configure a [`com0com` virtual null modem](https://files.akeo.ie/blog/com0com.7z)
 - Run as Adminstrator `com0com\setupc.exe`: &nbsp;   (see [com0com ReadMe](https://raw.githubusercontent.com/paulakg4/com0com/master/ReadMe) for instructions)
