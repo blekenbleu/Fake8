@@ -25,7 +25,7 @@ Unlike JavaScript, NCalc Update messages repeat even if unchanged unless explici
  by [change()](https://github.com/SHWotever/SimHub/wiki/NCalc-scripting).  
 Incoming `Fake8` serial data to SimHub's **Custom Serial** plugin will generally combine Arduino and `Fake8` strings.
 
-`Fake8` to Arduino [8-bit protocol](https://github.com/blekenbleu/Arduino-Blue-Pill/blob/main/8-bit.md) *approximates* MIDI protocol, with:  
+`Fake8` to Arduino [**8-bit protocol**](https://github.com/blekenbleu/Arduino-Blue-Pill/blob/main/8-bit.md) *approximates* MIDI protocol, with:  
 - only first message 8-bit characters having msb ==1
 - 3 msb of first message character are a command type
 - second character is 7-bit data
