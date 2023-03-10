@@ -22,7 +22,7 @@ namespace Fake8plugin
 	{
 		private FakeSettings Settings;
 		private Fake8 F8;
-		private static readonly string Ini = "DataCorePlugin.ExternalScript.Fake8";	// configuration source file
+		internal static readonly string Ini = "DataCorePlugin.ExternalScript.Fake8";	// configuration source file
 		private string[] Msg, Label;
 		private string b4;
 		private SerialPort CustomSerial;								// SimHub Custom Serial device via com0com
@@ -127,7 +127,7 @@ namespace Fake8plugin
 		/// <summary>
 		/// Log string of known serial ports
 		/// </summary>
-		private void Sports(string n)
+		internal void Sports(string n)
 		{
 			string s = $"Open(): {n};  available serial ports:";
 
@@ -153,9 +153,8 @@ namespace Fake8plugin
 		/// <param name="data">Current game data, including current and previous data frame.</param>
 		public void DataUpdate(PluginManager pluginManager, ref GameData data)
 		{
-			F8.Run(pluginManager);		// property changes drive Arduino
-
-			string prop = pluginManager.GetPropertyValue(F8.Ini + F8.Label)
+			// property changes drive Arduino
+			string prop = pluginManager.GetPropertyValue(F8.Run(pluginManager))?.ToString();
 
 			if (null != prop && 0 < prop.Length && (prop.Length != b4.Length || b4 != prop))
 			{
@@ -167,7 +166,7 @@ namespace Fake8plugin
 		/// <summary>
 		/// Called by End() to close a serial port
 		/// </summary>
-		private void Close(SerialPort serial)
+		internal void Close(SerialPort serial)
 		{
 			if (serial.IsOpen)
 				try
@@ -194,7 +193,7 @@ namespace Fake8plugin
 		/// <summary>
 		/// Called by Init() to open a serial port
 		/// </summary>
-		private void Fopen(SerialPort serial, string port)
+		internal void Fopen(SerialPort serial, string port)
 		{	
 			try
 			{
@@ -267,7 +266,7 @@ namespace Fake8plugin
 				CustomSerial.DataReceived += CustomDataReceived;
 				Fopen(CustomSerial, null_modem);
 				F8 = new Fake8();
-				F8.Init(this);
+				F8.Init(pluginManager, this);
 			}
 		}																			// Init()
 	}

@@ -24,9 +24,10 @@ namespace Fake8plugin
 	public class Fake8		// handle real Arduino USB COM por with 8-bit data
 	{
 		private SerialPort Arduino;
-		static private string Ini = "Fake7.";
+		static internal string Ini = "Fake7.";
 		private string[] Prop, b4;
 		private byte[] cmd;
+		internal string Label;
 
 		/// <summary>
 		/// wraps SimHub.Logging.Current.Info() with prefix
@@ -41,13 +42,13 @@ namespace Fake8plugin
 		// Called one time per game data update, contains all normalized game data,
 		/// Update run time
 		/// </summary>
-		private void Run(PluginManager pluginManager)
+		internal string Run(PluginManager pluginManager)
 		{
 			for (byte i = 0; i < Prop.Length; i++)
 			{
 				string prop = pluginManager.GetPropertyValue(Ini + Prop[i])?.ToString();
 
-				if (null == prop || 0 = prop.Length || (prop.Length == b4[i].Length && prop == b4[i]))
+				if (null == prop || 0 == prop.Length || (prop.Length == b4[i].Length && prop == b4[i]))
 					continue;
 				uint value = uint.Parse(prop);
 
@@ -69,12 +70,13 @@ namespace Fake8plugin
 					Arduino.Write(cmd, 0, 2);
 				}
 			}
+			return Ini + Label;
 		}
 
 		/// <summary>
 		/// declare a delegate for Fake8receiver()
 		/// </summary>
-		private delegate void CustDel(Fake8 I, string text);
+		private delegate void CustDel(string text);
 		readonly CustDel Crcv = Fake8receiver;
 
 		/// <summary>
@@ -87,8 +89,7 @@ namespace Fake8plugin
 		{
 			try
 			{
-				if (String.Empty ==  received)
-				 || (old.Length == received.Length && old == received))
+				if (String.Empty == received || (old.Length == received.Length && old == received))
 					return;
 
 				old = received;
@@ -108,7 +109,7 @@ namespace Fake8plugin
 			SerialPort sp = (SerialPort)sender;
 			string s= sp.ReadLine();
 
-			Crcv(I(), s);						// pass current instance to Fake8receiver() delegate
+			Crcv(s);						// pass current instance to Fake8receiver() delegate
 		}
 
 		/// <summary>
@@ -123,7 +124,7 @@ namespace Fake8plugin
 		/// <summary>
 		/// Called at SimHub start then after game changes
 		/// </summary>
-		public void Init(Fake7 F7)
+		public void Init(PluginManager pluginManager, Fake7 F7)
 		{
 			old = "old";
 			Arduino = new SerialPort();
@@ -131,31 +132,30 @@ namespace Fake8plugin
 
 // read configuration properties
 
-			string parms = pluginManager.GetPropertyValue(F7.Ini + "parms")?.ToString();
-			Label = pluginManager.GetPropertyValue(F7.Ini + "rcv")?.ToString();
-			byte i = 0;
+			string parms = pluginManager.GetPropertyValue(Fake7.Ini + "parms")?.ToString();
+			Label = pluginManager.GetPropertyValue(Fake7.Ini + "rcv")?.ToString();
 
-			if (null != parms && 0 < parms.Length null != Label && 0 < Label.Length)
+			if (null != parms && 0 < parms.Length && null != Label && 0 < Label.Length)
 			{
 				Prop = parms.Split(',');
-				if (5 < Settings.Prop.Length)
+				if (5 < Prop.Length)
 				{
-					string pill = pluginManager.GetPropertyValue(F7.Ini + "pill")?.ToString();
+					string pill = pluginManager.GetPropertyValue(Fake7.Ini + "pill")?.ToString();
 
 					b4 = new string[Prop.Length];
-					for (byte i = 0; i < Prop.Length; i+=)
+					for (byte i = 0; i < Prop.Length; i++)
 						b4[i] = "";
-					this.AttachDelegate(Label,	() =>old);		// Fake7 sends this property to Custom Serial plugin
+					F7.AttachDelegate(Label,	() =>old);		// Fake7 sends this property to Custom Serial plugin
 					if (null != pill || 0 < pill.Length)
 					{													// launch serial port
 						Arduino.DataReceived += AndroidDataReceived;
 						F7.Fopen(Arduino, pill);
 					}
-					else F7.Sports(F7.Ini + "Custom Serial 'F8pill' missing from F8.ini");
+					else F7.Sports(Fake7.Ini + "Custom Serial 'F8pill' missing from F8.ini");
 				}
-				else Info($"Init():  {F7.Ini + "parms"}.Length {parmArray.Length} < expected 6");
+				else Info($"Init():  {Fake7.Ini + "parms"}.Length {Prop.Length} < expected 6");
 			}
-			else Info("Init():  missing " + F7.Ini + "parms and/or " F7.Ini + "rcv");
+			else Info("Init():  missing " + Fake7.Ini + "parms and/or " + Fake7.Ini + "rcv");
 		}																			// Init()
 	}
 }
