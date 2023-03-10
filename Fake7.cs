@@ -15,22 +15,24 @@ namespace Fake8plugin
 		public string[] Prop { get; set; } = { "","","","","","","","","","" };
 	}
 
-	[PluginDescription("8-bit helper plugin between SimHub Custom Serial and Arduino;  echo Arduino (hex) to SimHub Custom Serial via com0com")]
+	[PluginDescription("fake serial device plugin to SimHub Custom Serial via com0com null modem")]
 	[PluginAuthor("blekenbleu")]
 	[PluginName("Fake8")]
 	public class Fake7 : IPlugin, IDataPlugin
 	{
 		private FakeSettings Settings;
+		private Fake8 F8;
 		private static readonly string Ini = "DataCorePlugin.ExternalScript.Fake8";	// configuration source file
 		private string[] Msg, Label;
-		private SerialPort CustomSerial;												// SimHub Custom Serial device via com0com
+		private string b4;
+		private SerialPort CustomSerial;								// SimHub Custom Serial device via com0com
 
 		/// <summary>
 		/// wraps SimHub.Logging.Current.Info() with prefix
 		/// </summary>
 		private static bool Info(string str)
 		{
-			SimHub.Logging.Current.Info("Fake8." + str);								// bool Info()
+			SimHub.Logging.Current.Info("Fake7." + str);								// bool Info()
 			return true;
 		}
 
@@ -76,19 +78,19 @@ namespace Fake8plugin
 		}
 
 		/// <summary>
-		/// declare a delegate for Fake8receiver()
+		/// declare a delegate for Fake7receiver()
 		/// </summary>
 		private delegate void CustDel(Fake7 I, string text);
-		readonly CustDel Crcv = Fake8receiver;
+		readonly CustDel Crcv = Fake7receiver;
 
 		private Fake7 I() { return this; }		// callback for current class instance
 		/// <summary>
 		/// Called by delegate from DataReceived method CustomDataReceived(),
-		/// which runs on a secondary thread from ThreadPool, so reportedly should not directly access main thread variables
-		/// As a delegate, it must be static and passed the class instance for variables... Calls Parse()
+		/// which runs on a secondary thread from ThreadPool;  should not directly access main thread variables
+		/// As a delegate, it must be static and passed the class variables instance... Calls Parse()
 		/// </summary>
 		static string old;
-		static private void Fake8receiver(Fake7 I, string received)
+		static private void Fake7receiver(Fake7 I, string received)
 		{
 
 			try
@@ -106,20 +108,20 @@ namespace Fake8plugin
 			}
 			catch (Exception e)
 			{
-				Info("Fake8receiver():  " + e.Message + " during " + received);
+				Info("Fake7receiver():  " + e.Message + " during " + received);
 			}
 		}
 
 		/// <summary>
 		/// SimHub Custom Serial DataReceived (via com0com) method runs on a secondary thread from ThreadPool
-		/// calls Fake8receiver() via delegate
+		/// calls Fake7receiver() via delegate
 		/// </summary>
 		private void CustomDataReceived(object sender, SerialDataReceivedEventArgs e)
 		{
 			SerialPort sp = (SerialPort)sender;
 			string s= sp.ReadExisting();
 
-			Crcv(I(), s);						// pass current instance to Fake8receiver() delegate
+			Crcv(I(), s);						// pass current instance to Fake7receiver() delegate
 		}
 
 		/// <summary>
@@ -151,7 +153,15 @@ namespace Fake8plugin
 		/// <param name="data">Current game data, including current and previous data frame.</param>
 		public void DataUpdate(PluginManager pluginManager, ref GameData data)
 		{
-			return;
+			F8.Run(pluginManager);		// property changes drive Arduino
+
+			string prop = pluginManager.GetPropertyValue(F8.Ini + F8.Label)
+
+			if (null != prop && 0 < prop.Length && (prop.Length != b4.Length || b4 != prop))
+			{
+				b4 = prop;
+				CustomSerial.Write(prop);
+			}
 		}
 
 		/// <summary>
@@ -178,6 +188,7 @@ namespace Fake8plugin
 		{
 			this.SaveCommonSettings("GeneralSettings", Settings);
 			Close(CustomSerial);
+			F8.End(this);
 		}
 
 		/// <summary>
@@ -209,7 +220,7 @@ namespace Fake8plugin
 		{
 			string[] parmArray;
 
-			old = "old";
+			b4 = old = "old";
 			CustomSerial = new SerialPort();
 			Msg = new string[] {"nothing yet", "so far, so good"};
 
@@ -255,6 +266,8 @@ namespace Fake8plugin
 			{
 				CustomSerial.DataReceived += CustomDataReceived;
 				Fopen(CustomSerial, null_modem);
+				F8 = new Fake8();
+				F8.Init(this);
 			}
 		}																			// Init()
 	}
