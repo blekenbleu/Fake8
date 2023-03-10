@@ -21,7 +21,7 @@ namespace Fake8plugin
 	public class Fake7 : IPlugin, IDataPlugin
 	{
 		private FakeSettings Settings;
-		private Fake8 F8;
+//		private Fake8 F8;
 		internal static readonly string Ini = "DataCorePlugin.ExternalScript.Fake8";	// configuration source file
 		private string[] Msg, Label;
 		private string b4;
@@ -153,6 +153,7 @@ namespace Fake8plugin
 		/// <param name="data">Current game data, including current and previous data frame.</param>
 		public void DataUpdate(PluginManager pluginManager, ref GameData data)
 		{
+/*
 			// property changes drive Arduino
 			string prop = pluginManager.GetPropertyValue(F8.Run(pluginManager))?.ToString();
 
@@ -161,6 +162,7 @@ namespace Fake8plugin
 				b4 = prop;
 				CustomSerial.Write(prop);
 			}
+ */
 		}
 
 		/// <summary>
@@ -187,7 +189,7 @@ namespace Fake8plugin
 		{
 			this.SaveCommonSettings("GeneralSettings", Settings);
 			Close(CustomSerial);
-			F8.End(this);
+//			F8.End(this);
 		}
 
 		/// <summary>
@@ -265,8 +267,8 @@ namespace Fake8plugin
 			{
 				CustomSerial.DataReceived += CustomDataReceived;
 				Fopen(CustomSerial, null_modem);
-				F8 = new Fake8();
-				F8.Init(pluginManager, this);
+//				F8 = new Fake8();
+//				F8.Init(pluginManager, this);
 			}
 		}																			// Init()
 	}
