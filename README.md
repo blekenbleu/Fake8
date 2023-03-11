@@ -55,6 +55,11 @@ This supports 80 commands:
 - look into [building both plugins in a single project](https://stackoverflow.com/questions/3867113/visual-studio-one-project-with-several-dlls-as-output)  
   [**search results**](https://duckduckgo.com/?q=visual+studio+multiple+%22dlls%22+in+one+solution)
 
+## Status 10 Mar 2023
+- Perhaps the problem is Fake7 hanging on write back to Custom Serial via com0com;   
+  Read works ok, and and both Read and Write work to e.g. Arduio Serial Monitor.
+  Changed F8.ini `Fake8rcv` setting to `f9` from `Arduino`, so that Fake7 could read a property that changes without Fake8.
+
 ## Problems encountered
 - SourceForge's `com0com` virtual null modem package **does not work on recent Windows 10 versions**.
    - get [Pete Batard's](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) **signed** [`com0com` driver](https://files.akeo.ie/blog/com0com.7z).

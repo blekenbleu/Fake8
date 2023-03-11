@@ -24,7 +24,7 @@ namespace Fake8plugin
 //		private Fake8 F8;
 		internal static readonly string Ini = "DataCorePlugin.ExternalScript.Fake8";	// configuration source file
 		private string[] Msg, Label;
-		private string b4;
+		private string b4, RecvProp;
 		static bool running;
 		private static SerialPort CustomSerial;								// SimHub Custom Serial device via com0com
 
@@ -155,18 +155,18 @@ namespace Fake8plugin
 		/// </summary>
 		/// <param name="pluginManager"></param>
 		/// <param name="data">Current game data, including current and previous data frame.</param>
+		string prop;
 		public void DataUpdate(PluginManager pluginManager, ref GameData data)
 		{
-/*
 			// property changes drive Arduino
-			string prop = pluginManager.GetPropertyValue(F8.Run(pluginManager))?.ToString();
+//			RecvProp = F8.Run(pluginManager);
+			prop = pluginManager.GetPropertyValue(RecvProp)?.ToString();
 
 			if (null != prop && 0 < prop.Length && (prop.Length != b4.Length || b4 != prop))
 			{
 				b4 = prop;
 				CustomSerial.Write(prop);
 			}
- */
 		}
 
 		/// <summary>
@@ -227,6 +227,7 @@ namespace Fake8plugin
 			string[] parmArray;
 
 			b4 = old = "old";
+			prop = "Fake8 not running";
 			CustomSerial = new SerialPort();
 			Msg = new string[] {"nothing yet", "so far, so good"};
 
@@ -240,6 +241,11 @@ namespace Fake8plugin
 			Label = new string[Settings.Prop.Length];
 
 // read configuration properties
+
+			RecvProp = pluginManager.GetPropertyValue(Ini + "rcv")?.ToString();
+			if (null == RecvProp || 0 == RecvProp.Length)
+                Info("Init():  missing " + Ini + "rcv");
+			else RecvProp = "Fake7." + RecvProp;
 
 			string parms = pluginManager.GetPropertyValue(Ini + "parms")?.ToString();
 			byte i = 0;

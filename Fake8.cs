@@ -23,7 +23,8 @@ namespace Fake8plugin
 {
 	public class Fake8		// handle real Arduino USB COM por with 8-bit data
 	{
-		private SerialPort Arduino;
+		static bool ongoing;
+		private static SerialPort Arduino;
 		static internal string Ini = "Fake7.";
 		private string[] Prop, b4;
 		private byte[] cmd;
@@ -107,9 +108,12 @@ namespace Fake8plugin
 		private void AndroidDataReceived(object sender, SerialDataReceivedEventArgs e)
 		{
 			SerialPort sp = (SerialPort)sender;
-			string s= sp.ReadLine();
+			while (ongoing)
+			{
+				string s= sp.ReadLine();
 
-			Crcv(s);						// pass current instance to Fake8receiver() delegate
+				Crcv(s);						// pass current instance to Fake8receiver() delegate
+			}
 		}
 
 		/// <summary>
@@ -118,6 +122,7 @@ namespace Fake8plugin
 		/// </summary>
 		public void End(Fake7 F7)
 		{
+			ongoing = false;
 			F7.Close(Arduino);
 		}
 
@@ -127,6 +132,7 @@ namespace Fake8plugin
 		public void Init(PluginManager pluginManager, Fake7 F7)
 		{
 			old = "old";
+			ongoing = true;
 			Arduino = new SerialPort();
 			cmd = new byte[4];
 
