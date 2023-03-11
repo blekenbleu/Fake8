@@ -25,7 +25,8 @@ namespace Fake8plugin
 		internal static readonly string Ini = "DataCorePlugin.ExternalScript.Fake8";	// configuration source file
 		private string[] Msg, Label;
 		private string b4;
-		private SerialPort CustomSerial;								// SimHub Custom Serial device via com0com
+		static bool running;
+		private static SerialPort CustomSerial;								// SimHub Custom Serial device via com0com
 
 		/// <summary>
 		/// wraps SimHub.Logging.Current.Info() with prefix
@@ -119,9 +120,12 @@ namespace Fake8plugin
 		private void CustomDataReceived(object sender, SerialDataReceivedEventArgs e)
 		{
 			SerialPort sp = (SerialPort)sender;
-			string s= sp.ReadExisting();
+			while (running)
+			{
+				string s= sp.ReadExisting();
 
-			Crcv(I(), s);						// pass current instance to Fake7receiver() delegate
+				Crcv(I(), s);						// pass current instance to Fake7receiver() delegate
+			}
 		}
 
 		/// <summary>
@@ -187,6 +191,7 @@ namespace Fake8plugin
 		/// <param name="pluginManager"></param>
 		public void End(PluginManager pluginManager)
 		{
+			running = false;
 			this.SaveCommonSettings("GeneralSettings", Settings);
 			Close(CustomSerial);
 //			F8.End(this);
@@ -229,7 +234,7 @@ namespace Fake8plugin
 
 			Settings = this.ReadCommonSettings<FakeSettings>("GeneralSettings", () => new FakeSettings());
 
-			Info($"Init().InitCount:  {++Settings.Value[0]}; Settings.Length = {Settings.Value.Length}");
+			Info($"Init().InitCount:  {++Settings.Value[0]}; Settings.Length = {Settings.Prop.Length}");
 			if (10 > Settings.Prop.Length)
 				Settings = new FakeSettings();
 			Label = new string[Settings.Prop.Length];
@@ -265,6 +270,7 @@ namespace Fake8plugin
 				Sports(Ini + "Custom Serial 'F8com' missing from F8.ini");
 			else
 			{
+				running = true;
 				CustomSerial.DataReceived += CustomDataReceived;
 				Fopen(CustomSerial, null_modem);
 //				F8 = new Fake8();
