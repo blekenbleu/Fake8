@@ -24,9 +24,8 @@ namespace Fake8plugin
 		private Fake8 F8;
 		// configuration source file
 		internal static readonly string Ini = "DataCorePlugin.ExternalScript.Fake8";
-		private string[] Msg, Label;
-		private string b4, RecvProp;
-		static bool running;
+		private string[] Label;
+		static internal bool running;
 		internal static SerialPort CustomSerial;			// SimHub Custom Serial device via com0com
 
 		/// <summary>
@@ -43,9 +42,9 @@ namespace Fake8plugin
 		/// </summary>
 		private void Attach()
 		{
+			this.AttachDelegate("Msg_Custom",		() => old);
+			this.AttachDelegate("Msg_Arduino",		() => Fake8.msg);
 			this.AttachDelegate("InitCount",		() => Settings.Value[0]);
-			this.AttachDelegate("F7.ReadExisting()",() => old);
-			this.AttachDelegate("PluginMsg",		() => Msg[1]);
 			this.AttachDelegate(Label[0],			() => Settings.Prop[0]);
 			this.AttachDelegate(Label[1],			() => Settings.Prop[1]);
 			this.AttachDelegate(Label[2],			() => Settings.Prop[2]);
@@ -73,9 +72,9 @@ namespace Fake8plugin
 						Settings.Prop[i] = f8[1];
 						return true;
 					}
-				Msg[1] = "Parse(): no match for " + parms;
+				old = "Parse(): no match for " + parms;
 			}
-			else Msg[1] = $"Parse(): invalid parm '{parms}'";
+			else old = $"Parse(): invalid parm '{parms}'";
 			return false;
 		}
 
@@ -91,27 +90,18 @@ namespace Fake8plugin
 		/// which runs on a secondary thread;  should not directly access main thread variables
 		/// As a delegate, it must be static and passed the class variables instance... Calls Parse()
 		/// </summary>
-		static string old;
-		static private void Fake7receiver(Fake7 I, string received)
+		static internal string old;
+		static private void Fake7receiver(Fake7 I, string msg)
 		{
+			if (String.Empty == msg || (old.Length == msg.Length && old == msg))
+				return;
 
-			try
-			{
-				if (String.Empty == (I.Msg[0] = received)
-				 || (old.Length == received.Length && old == received))
-					return;
+			old = msg;
+			string[] parm = msg.Split(';');
 
-				old = received;
-				string[] parm = received.Split(';');
-
-				for (byte i = 0; i < parm.Length; i++)
-					if (0 < parm[i].Length)
-						I.Parse(parm[i]);
-			}
-			catch (Exception e)
-			{
-				Info("Fake7receiver():  " + e.Message + " during " + received);
-			}
+			for (byte i = 0; i < parm.Length; i++)
+				if (0 < parm[i].Length)
+					I.Parse(parm[i]);
 		}
 
 		/// <summary>
@@ -123,9 +113,17 @@ namespace Fake8plugin
 			SerialPort sp = (SerialPort)sender;
 			while (running)
 			{
-				string s= sp.ReadExisting();
+				try
+				{
+					string s= sp.ReadExisting();
 
-				Crcv(I(), s);				// pass current instance to Fake7receiver() delegate
+					Crcv(I(), s);							// pass current instance to Fake7receiver() delegate
+				}
+				catch (Exception cre)
+				{
+					Info(old = "CustomDataReceived():  " + cre.Message);
+					running = false;										// recovery in Fake8.Fake8receiver()
+				}
 			}
 		}
 
@@ -156,22 +154,9 @@ namespace Fake8plugin
 		/// </summary>
 		/// <param name="pluginManager"></param>
 		/// <param name="data">Current game data, including current and previous data frame.</param>
-		string prop;
 		public void DataUpdate(PluginManager pluginManager, ref GameData data)
 		{
-			// property changes drive Arduino
-			RecvProp = F8.Run(pluginManager);
-/*
-			prop = pluginManager.GetPropertyValue(RecvProp)?.ToString();
-
-			if (null != prop && 0 < prop.Length && (prop.Length != b4.Length || b4 != prop))
-			{
-				b4 = prop;
-				Msg[1] = $"CustomSerial.Write({prop})";
-				CustomSerial.Write(prop);
-				Msg[1] += " sent";
-			}
- */
+			F8.Run(pluginManager);	// property changes drive Arduino.Write()
 		}
 
 		/// <summary>
@@ -234,10 +219,9 @@ namespace Fake8plugin
 		{
 			string[] parmArray;
 
-			b4 = old = "old";
-			prop = "Fake8 not running";
+			old = "old";
 			CustomSerial = new SerialPort();
-			Msg = new string[] {"nothing yet", "so far, so good"};
+			F8 = new Fake8();
 
 // Load settings, create properties
 
@@ -249,11 +233,6 @@ namespace Fake8plugin
 			Label = new string[Settings.Prop.Length];
 
 // read configuration properties
-
-			RecvProp = pluginManager.GetPropertyValue(Ini + "rcv")?.ToString();
-			if (null == RecvProp || 0 == RecvProp.Length)
-				Info("Init():  missing " + Ini + "rcv");
-			else RecvProp = "Fake7." + RecvProp;
 
 			string parms = pluginManager.GetPropertyValue(Ini + "parms")?.ToString();
 			byte i = 0;
@@ -277,16 +256,15 @@ namespace Fake8plugin
 
 			// launch serial ports
 
-			string null_modem = pluginManager.GetPropertyValue(Ini + "com")?.ToString();
+			string null_modem = pluginManager.GetPropertyValue(Ini + "cust")?.ToString();
 
 			if (null == null_modem || 0 == null_modem.Length)
-				Sports(Ini + "Custom Serial 'F8com' missing from F8.ini");
+				Sports("Custom Serial '" + Ini + "cust" + "' missing from F8.ini");
 			else
 			{
 				running = true;
 				CustomSerial.DataReceived += CustomDataReceived;
 				Fopen(CustomSerial, null_modem);
-				F8 = new Fake8();
 				F8.Init(pluginManager, this);
 			}
 		}																			// Init()
