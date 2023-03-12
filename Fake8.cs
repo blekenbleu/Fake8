@@ -85,7 +85,7 @@ namespace Fake8plugin
 		/// which runs on a secondary thread from ThreadPool, so should not directly access non-static main thread variables
 		/// As a delegate, it must be static 
 		/// </summary>
-		static string old;
+		static string old, rcv;
 		static private void Fake8receiver(string received)
 		{
 			try
@@ -93,11 +93,11 @@ namespace Fake8plugin
 				if (String.Empty == received || (old.Length == received.Length && old == received))
 					return;
 
-				old = received;
+				Fake7.CustomSerial.Write(old = received);
 			}
 			catch (Exception e)
 			{
-				Info("Fake8receiver():  " + e.Message + " during " + received);
+				Info(rcv = "Fake8receiver():  " + e.Message + " during " + received);
 			}
 		}
 
@@ -110,9 +110,16 @@ namespace Fake8plugin
 			SerialPort sp = (SerialPort)sender;
 			while (ongoing)
 			{
-				string s= sp.ReadLine();
+				try
+				{
+					string s = sp.ReadExisting();
 
-				Crcv(s);						// pass current instance to Fake8receiver() delegate
+					Crcv(rcv = s);	// pass current instance to Fake8receiver() delegate
+				}
+				catch (Exception rex)
+				{
+					Info(rcv = "AndroidDataReceived():  " + rex.Message );
+				}
 			}
 		}
 
@@ -152,6 +159,7 @@ namespace Fake8plugin
 					for (byte i = 0; i < Prop.Length; i++)
 						b4[i] = "";
 					F7.AttachDelegate(Label,	() =>old);		// Fake7 sends this property to Custom Serial plugin
+					F7.AttachDelegate("F8rcv",	() =>rcv);
 					if (null != pill || 0 < pill.Length)
 					{													// launch serial port
 						Arduino.DataReceived += AndroidDataReceived;

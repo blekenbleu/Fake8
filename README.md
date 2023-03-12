@@ -60,6 +60,15 @@ This supports 80 commands:
   Read works ok, and and both Read and Write work to e.g. Arduio Serial Monitor.
   Changed F8.ini `Fake8rcv` setting to `f9` from `Arduino`, so that Fake7 could read a property that changes without Fake8.
 
+## Status 11 Mar 2023
+- Confirmed that Custom Serial `Incoming serial data` and com0com are by default incompatible;  
+  FWIW, Arduino serial terminal works fine on COM8 instead of SimHub's Custom Serial device...??!!  
+  finally got beyond `CustomSerial.Write(prop);` timeout by forcing com0com setting:  
+  `change CNCB0 PortName=COM2,EmuOverrun=yes,ExclusiveMode=no,cts=on,dsr=on,dcd=on`  
+  `EmuOverrun=yes` by itself did not suffice;&nbsp;  isolating essential setting is low priority.  
+- Both ports work;&nbsp; Fake8receiver() can call Fake7.CustomSerial.Write(), but  
+  needs exception handling (e.g. reopen)
+
 ## Problems encountered
 - SourceForge's `com0com` virtual null modem package **does not work on recent Windows 10 versions**.
    - get [Pete Batard's](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) **signed** [`com0com` driver](https://files.akeo.ie/blog/com0com.7z).
@@ -71,6 +80,7 @@ This supports 80 commands:
 - `Arduino.DtrEnable = true;` is required [for C# to read from Arduino](https://forum.arduino.cc/t/serial-communication-with-c-program-serialdatareceivedeventhandler-doesnt-work/108564/3), but not for com0com.
 - Unable to restart Arduino sketch by toggling `Arduino.DtrEnable` and `Arduino.RtsEnable`.
 - Unable to get both COM ports working robustly in a single plugin.
+- SimHub Custom Serial device receiving (**Incoming serial data**) seems uniquely incompatible with `com0com`.  
 
 ## Configure a [`com0com` virtual null modem](https://files.akeo.ie/blog/com0com.7z)
 - Run as Adminstrator `com0com\setupc.exe`: &nbsp;   (see [com0com ReadMe](https://raw.githubusercontent.com/paulakg4/com0com/master/ReadMe) for instructions)

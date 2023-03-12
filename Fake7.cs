@@ -21,19 +21,20 @@ namespace Fake8plugin
 	public class Fake7 : IPlugin, IDataPlugin
 	{
 		private FakeSettings Settings;
-//		private Fake8 F8;
-		internal static readonly string Ini = "DataCorePlugin.ExternalScript.Fake8";	// configuration source file
+		private Fake8 F8;
+		// configuration source file
+		internal static readonly string Ini = "DataCorePlugin.ExternalScript.Fake8";
 		private string[] Msg, Label;
 		private string b4, RecvProp;
 		static bool running;
-		private static SerialPort CustomSerial;								// SimHub Custom Serial device via com0com
+		internal static SerialPort CustomSerial;			// SimHub Custom Serial device via com0com
 
 		/// <summary>
 		/// wraps SimHub.Logging.Current.Info() with prefix
 		/// </summary>
 		private static bool Info(string str)
 		{
-			SimHub.Logging.Current.Info("Fake7." + str);								// bool Info()
+			SimHub.Logging.Current.Info("Fake7." + str);						// bool Info()
 			return true;
 		}
 
@@ -43,7 +44,7 @@ namespace Fake8plugin
 		private void Attach()
 		{
 			this.AttachDelegate("InitCount",		() => Settings.Value[0]);
-			this.AttachDelegate("ReadExisting()",	() => Msg[0]);
+			this.AttachDelegate("F7.ReadExisting()",() => old);
 			this.AttachDelegate("PluginMsg",		() => Msg[1]);
 			this.AttachDelegate(Label[0],			() => Settings.Prop[0]);
 			this.AttachDelegate(Label[1],			() => Settings.Prop[1]);
@@ -87,7 +88,7 @@ namespace Fake8plugin
 		private Fake7 I() { return this; }		// callback for current class instance
 		/// <summary>
 		/// Called by delegate from DataReceived method CustomDataReceived(),
-		/// which runs on a secondary thread from ThreadPool;  should not directly access main thread variables
+		/// which runs on a secondary thread;  should not directly access main thread variables
 		/// As a delegate, it must be static and passed the class variables instance... Calls Parse()
 		/// </summary>
 		static string old;
@@ -114,7 +115,7 @@ namespace Fake8plugin
 		}
 
 		/// <summary>
-		/// SimHub Custom Serial DataReceived (via com0com) method runs on a secondary thread from ThreadPool
+		/// SimHub Custom Serial DataReceived() (via com0com) runs on a secondary thread
 		/// calls Fake7receiver() via delegate
 		/// </summary>
 		private void CustomDataReceived(object sender, SerialDataReceivedEventArgs e)
@@ -124,7 +125,7 @@ namespace Fake8plugin
 			{
 				string s= sp.ReadExisting();
 
-				Crcv(I(), s);						// pass current instance to Fake7receiver() delegate
+				Crcv(I(), s);				// pass current instance to Fake7receiver() delegate
 			}
 		}
 
@@ -148,9 +149,9 @@ namespace Fake8plugin
 
 		/// <summary>
 		/// Called one time per game data update, contains all normalized game data,
-		/// raw data are intentionnally "hidden" under a generic object type (A plugin SHOULD NOT USE IT)
+		/// raw data are "hidden" under a generic object type (A plugin SHOULD NOT USE IT)
 		///
-		/// This method is on the critical path, it must execute as fast as possible and avoid throwing any error
+		/// This method must execute as fast as possible and avoid throwing any error
 		///
 		/// </summary>
 		/// <param name="pluginManager"></param>
@@ -159,14 +160,18 @@ namespace Fake8plugin
 		public void DataUpdate(PluginManager pluginManager, ref GameData data)
 		{
 			// property changes drive Arduino
-//			RecvProp = F8.Run(pluginManager);
+			RecvProp = F8.Run(pluginManager);
+/*
 			prop = pluginManager.GetPropertyValue(RecvProp)?.ToString();
 
 			if (null != prop && 0 < prop.Length && (prop.Length != b4.Length || b4 != prop))
 			{
 				b4 = prop;
+				Msg[1] = $"CustomSerial.Write({prop})";
 				CustomSerial.Write(prop);
+				Msg[1] += " sent";
 			}
+ */
 		}
 
 		/// <summary>
@@ -194,7 +199,7 @@ namespace Fake8plugin
 			running = false;
 			this.SaveCommonSettings("GeneralSettings", Settings);
 			Close(CustomSerial);
-//			F8.End(this);
+			F8.End(this);
 		}
 
 		/// <summary>
@@ -208,7 +213,10 @@ namespace Fake8plugin
 				serial.BaudRate = 9600;
 				serial.DtrEnable = true;				// nothing received from Arduino without this
   				serial.RtsEnable = true;
-  				serial.Handshake = Handshake.None;
+//  			serial.Handshake = Handshake.None;
+				serial.Handshake = Handshake.RequestToSend;
+				serial.ReadTimeout = 50;
+				serial.WriteTimeout = 250;
 				serial.Open();
 				Info($"Open({port}): success!");
 			}
@@ -244,7 +252,7 @@ namespace Fake8plugin
 
 			RecvProp = pluginManager.GetPropertyValue(Ini + "rcv")?.ToString();
 			if (null == RecvProp || 0 == RecvProp.Length)
-                Info("Init():  missing " + Ini + "rcv");
+				Info("Init():  missing " + Ini + "rcv");
 			else RecvProp = "Fake7." + RecvProp;
 
 			string parms = pluginManager.GetPropertyValue(Ini + "parms")?.ToString();
@@ -254,15 +262,14 @@ namespace Fake8plugin
 				Info("Init():  missing " + Ini + "parms");
 			else
 			{
-				parmArray = parms.Split(',');
-				if (parmArray.Length > Settings.Prop.Length)
-					Info($"Init():  {Ini + "parms"}.Length {parmArray.Length} > {Settings.Prop.Length}");
-				else {
-					int n = (parmArray.Length < Settings.Prop.Length) ? parmArray.Length : Settings.Prop.Length;
-
-					for (i = 0; i < n; i++)
-						Label[i] = parmArray[i];
+				int n = (parmArray = parms.Split(',')).Length;
+				if (n > Settings.Prop.Length) {
+					Info($"Init():  {Ini + "parms"}.Length {n} > {Settings.Prop.Length}");
+					n = Settings.Prop.Length;
 				}
+
+				for (i = 0; i < n; i++)
+					Label[i] = parmArray[i];
 			}
 			for (; i < Settings.Prop.Length; i++)
 					Label[i] = "f" + i;
@@ -279,8 +286,8 @@ namespace Fake8plugin
 				running = true;
 				CustomSerial.DataReceived += CustomDataReceived;
 				Fopen(CustomSerial, null_modem);
-//				F8 = new Fake8();
-//				F8.Init(pluginManager, this);
+				F8 = new Fake8();
+				F8.Init(pluginManager, this);
 			}
 		}																			// Init()
 	}
