@@ -3,238 +3,233 @@ using SimHub.Plugins;
 using System;
 using System.IO;
 using System.IO.Ports;
+using System.Timers;
+
+/* Tension test sliders
+ ; https://github.com/blekenbleu/SimHub-profiles/blob/main/Fake8.shsds
+ ; f0:	PWM period (usec / 50) 1 - 40000
+ ; f1:  max PWM % 0 - 100
+ ; f2:  min PWM % 0 - 10
+ ; f3:  predistortion amplitude: % of PWM change 0 - 64
+ ; f4:  predistortion count (number of PWM cycles) 0 - 64
+ ; f5:  Test period count (number of SimHub Run() invocations 60 - 600
+ ; f6:  Test rise count 0 - 64
+ ; f7:  Test hold count 0 - 64
+ ; f8:  Test fall count 0 - 64
+ ; f9:
+ */
 
 namespace Fake8plugin
 {
-	// these must be public
-	public class FakeSettings // saved while plugin restarts
+	public class Fake8		// handle real Arduino USB COM por with 8-bit data
 	{
-		public byte[] Value { get; set; } = { 0,0,0 };
-		public string[] Prop { get; set; } = { "","","","","","","","","","" };
-	}
-
-	[PluginDescription("Custom Serial helper creates properties from messages")]
-	[PluginAuthor("blekenbleu")]
-	[PluginName("Fake8")]
-	public class Fake8 : IPlugin, IDataPlugin
-	{
-		internal FakeSettings Settings;
-		internal static readonly string Ini = "DataCorePlugin.ExternalScript.Fake8"; // configuration source file
-		SerialPort CustomSerial;						// CustomSerial uses com0com for SimHub Custom Serial device
-		private string[] Label, f8;
-		private string FromArduino, rcv;
+		private static SerialPort Arduino;
+		static bool ongoing;						// Arduino port statu flag
+		static internal string Ini = "Fake7.";		// SimHub's property prefix for this plugin
+		private string[] Prop, b4;					// kill duplicated Custom Serial messages
+		private byte[] cmd;							// 8-bit bytes to Arduino
+		static internal string msg;					// user feedback property
 
 		/// <summary>
 		/// wraps SimHub.Logging.Current.Info() with prefix
 		/// </summary>
-		internal static bool Info(string str)
+		private static bool Info(string str)
 		{
-			SimHub.Logging.Current.Info("Fake8." + str);						// bool Info()
+			SimHub.Logging.Current.Info("Fake8." + str);								// bool Info()
 			return true;
 		}
 
-		/// <summary>
-		/// create SimHub properties
-		/// </summary>
-		private void Attach()
+		static internal bool Recover(SerialPort port)
 		{
-			this.AttachDelegate(Label[0],	 () => Settings.Prop[0]);
-			this.AttachDelegate(Label[1],	 () => Settings.Prop[1]);
-			this.AttachDelegate(Label[2],	 () => Settings.Prop[2]);
-			this.AttachDelegate(Label[3],	 () => Settings.Prop[3]);
-			this.AttachDelegate(Label[4],	 () => Settings.Prop[4]);
-			this.AttachDelegate(Label[5],	 () => Settings.Prop[5]);
-			this.AttachDelegate(Label[6],	 () => Settings.Prop[6]);
-			this.AttachDelegate(Label[7],	 () => Settings.Prop[7]);
-			this.AttachDelegate(Label[8],	 () => Settings.Prop[8]);
-			this.AttachDelegate(Label[9],	 () => Settings.Prop[9]);
+			if (! port.IsOpen)
+			{
+				try
+				{
+					port.DiscardInBuffer();
+				}
+				catch {/* ignore */}
+				try
+				{
+					port.DiscardOutBuffer();
+				}
+				catch {/* ignore */}
+				try
+				{
+					port.Open();
+					return true;
+				}
+				catch { /* ignore */ }
+			}
+
+			return false;
+		}
+
+		private void TryWrite(byte[] cmd, byte length)
+		{
+			try
+			{
+				Arduino.Write(cmd, 0, length);
+			}
+			catch (Exception wex)
+			{
+				if (ongoing)
+					Info(msg = "Run():  " + wex.Message + " during Arduino.Write");
+				if (ongoing = Recover(Arduino))
+					Info(msg = "Run():  Arduino connection restored");
+			} 
 		}
 
 		/// <summary>
-		/// Runs on a secondary thread
+		// Called one time per game data update, contains all normalized game data,
+		/// Update run time
 		/// </summary>
-		internal void Fake8receiver(object sender, SerialDataReceivedEventArgs e)
+		bool once;											// avoid flooding log with duplicate messages
+		internal void Run(PluginManager pluginManager)
 		{
-			string received = "";
+			if (null == Prop)
+			{
+				if (once)
+					Info(msg = "Run(): null Prop[]");
+				once = false;
+				return;
+			}
+			once = true;
+				
+			for (byte i = 0; i < Prop.Length; i++)
+			{
+				string prop = pluginManager.GetPropertyValue(Ini + Prop[i])?.ToString();
+
+				if (null == prop || 0 == prop.Length || (prop.Length == b4[i].Length && prop == b4[i]))
+					continue;
+				uint value = uint.Parse(prop);
+
+				b4[i] = prop;
+//							https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/PWM_FullConfiguration
+				if (0 == i)			// case 7: 16-bit PWM period
+				{
+					cmd[2] = (byte)(127 & value);
+					value >>= 7;
+					cmd[1] = (byte)(127 & value);
+					value >>= 7;
+					cmd[0] = (byte)((7 << 5) | (3 & value));
+					TryWrite(cmd, 3);
+				}
+				else if (1 == i) 	// case 4: 7-bit PWM %
+				{
+					cmd[1] = (byte)(127 & value);
+					cmd[0] = (byte)(4 << 5);
+					TryWrite(cmd, 2);
+				}
+			}
+		}
+
+		/// <summary>
+		/// declare a delegate for Receiver()
+		/// </summary>
+		private delegate void CustDel(string text);
+		readonly CustDel Crcv = Receiver;
+
+		/// <summary>
+		/// Called by delegate from DataReceived method AndroidDataReceived(),
+		/// which runs on a secondary thread from ThreadPool, so should not directly access non-static main thread variables
+		/// As a delegate, it must be static 
+		/// </summary>
+		static string old;
+		static char last;
+		static private void Receiver(string received)
+		{
+			if (String.Empty == received || (old.Length == received.Length && old == received))
+				return;
 
 			try
 			{
-				SerialPort sp = (SerialPort)sender;
-				received = sp.ReadExisting();
-				if (String.Empty != received)
-				{
-					string[] parm = received.Split(';');
-
-					for (byte i = 0; i < parm.Length; i++)
-						if (0 < parm[i].Length)
-						{
-							f8 = parm[i].Split('=');
-							if (2 == f8.Length && 0 < f8[0].Length && 0 < f8[1].Length)
-								for (byte j = 0; j < Label.Length; j++)
-									if (Label[i] == f8[0])
-										Settings.Prop[i] = f8[1];
-							return;
-						}
-						else
-						{
-							CustomSerial.Write((Settings.Prop[8] = $"Invalid parm msg: '{received}'") + "\n");
-							Settings.Prop[8] += "sent";
-						}
-				}
+				Fake7.CustomSerial.Write(old = received);
 			}
-			catch (Exception ex)
+			catch (Exception e)
 			{
-				Info("Fake8receiver():  " + ex.Message + " during " + received);
+				if (Fake7.running)
+					Info(Fake7.old = "Custom Serial:  " + e.Message + $" during Fake7.CustomSerial.Write({received})");
+				if (Fake7.running = Recover(Fake7.CustomSerial))
+					Info(Fake7.old = "Custom Serial connection recovered");
 			}
-			return;
+			if ('\n' == last)	// Arduino messages may be fragmented, but end with `\n'
+				msg = old;
+			else msg += old;
+			last = old[old.Length - 1];
 		}
 
 		/// <summary>
-		/// report known serial ports
+		/// Arduino DataReceived method runs on a secondary thread from ThreadPool
+		/// calls Receiver() via delegate
 		/// </summary>
-		private void Sports(string n)
+		private void AndroidDataReceived(object sender, SerialDataReceivedEventArgs e)
 		{
-			string s = $"Open(): {n};  available serial ports:";
-
-			foreach (string p in SerialPort.GetPortNames())
-				s += "\n\t" + p;
-
-			Info(s);
-		}
-
-		/// <summary>
-		/// Instance of the current plugin manager
-		/// </summary>
-		public PluginManager PluginManager { get; set; }
-
-		/// <summary>
-		/// Called one time per game data update, contains all normalized game data,
-		/// raw data are intentionnally "hidden" under a generic object type (A plugin SHOULD NOT USE IT)
-		///
-		/// This method is on the critical path, it must execute as fast as possible and avoid throwing any error
-		///
-		/// </summary>
-		/// <param name="pluginManager"></param>
-		/// <param name="data">Current game data, including current and previous data frame.</param>
-		public void DataUpdate(PluginManager pluginManager, ref GameData data)
-		{
-			// scan for SimHub property changes, send commands to Arduino
-			if (null == FromArduino || 0 == FromArduino.Length)
-				return;
-
-			string Arduino = pluginManager.GetPropertyValue(FromArduino)?.ToString();
-
-			if (null != Arduino && 0 < Arduino.Length && Arduino != rcv)
+			SerialPort sp = (SerialPort)sender;
+			while (ongoing)
 			{
-				CustomSerial.Write(Settings.Prop[8] = rcv = Arduino);
-				Settings.Prop[8] += "sent";
-			}
-		}
-
-		/// <summary>
-		/// Called by End() to close a serial port
-		/// </summary>
-		private void Close(SerialPort serial)
-		{
-			if (serial.IsOpen)
 				try
 				{
-					serial.Close();
-					serial.DiscardInBuffer();
-					serial.DiscardOutBuffer();
+					string s = sp.ReadExisting();
+
+					Crcv(s);	// pass current instance to Receiver() delegate
 				}
-				catch {/* ignore */}
+				catch (Exception rex)
+				{
+					if (ongoing)
+						Info(msg = "AndroidDataReceived():  " + rex.Message );
+					ongoing = false;		// recover in TryWrite();
+				}
+			}
 		}
 
 		/// <summary>
 		/// Called at plugin manager stop, close/dispose anything needed here!
 		/// Plugins are rebuilt at game changes, but NCalc files are not re-read
 		/// </summary>
-		/// <param name="pluginManager"></param>
-		public void End(PluginManager pluginManager)
+		public void End(Fake7 F7)
 		{
-			this.SaveCommonSettings("GeneralSettings", Settings);
-			Close(CustomSerial);
-		}
-
-		/// <summary>
-		/// Called by Init() to open a serial port
-		/// </summary>
-		private void Fopen(SerialPort serial, string port)
-		{	
-			try
-			{
-				serial.PortName = port;
-				serial.BaudRate = 9600;
-				serial.DtrEnable = true;				// nothing received from Arduino without this
-//				serial.RtsEnable = true;
-//				serial.Handshake = Handshake.RequestToSend;
-				serial.ReadTimeout = 500;
-				serial.WriteTimeout = 500;
-				serial.Open();
-				Info($"Open({port}): success!");
-			}
-			catch (Exception ex)
-			{
-				Sports($"Open({port}) failed.  " + ex.Message);
-			}
+			ongoing = false;
+			F7.Close(Arduino);
 		}
 
 		/// <summary>
 		/// Called at SimHub start then after game changes
 		/// </summary>
-		/// <param name="pluginManager"></param>
-		public void Init(PluginManager pluginManager)
+		public void Init(PluginManager pluginManager, Fake7 F7)
 		{
-			CustomSerial = new SerialPort();
-			rcv = "\n";
+			old = "old";
+			msg = "[waiting]";
+			last = '\n';
+			once = true;
+			Arduino = new SerialPort();
+			cmd = new byte[4];
 
-// Load settings, create properties
+// read properties and configure
 
-			Settings = this.ReadCommonSettings<FakeSettings>("GeneralSettings", () => new FakeSettings());
+			string parms = pluginManager.GetPropertyValue(Fake7.Ini + "parms")?.ToString();
 
-			Info($"Init().InitCount:  {++Settings.Value[2]}; Settings.Length = {Settings.Value.Length}");
-			if (3  != Settings.Value.Length)
-				Settings = new FakeSettings();
-			Label = new string[Settings.Prop.Length];
-
-// read configured property names
-
-			string parms = pluginManager.GetPropertyValue(Ini + "parms")?.ToString();
-			string[] split;
-			byte i = 0, n;
-
-			if (null == parms || 0 == parms.Length)
-				Info("Init():  missing " + Ini + "parms");
-			else
+			if (null != parms && 0 < parms.Length)
 			{
-				split = parms.Split(',');
-				if (split.Length > Label.Length)
-					Info($"Init(): {split.Length} parms vs {Label.Length} Label.Length\n");
-				n = (byte)((split.Length < Label.Length) ? split.Length : Label.Length);
-				for (i = 0; i < n; i++)
-					Label[i] = split[i];
+				Prop = parms.Split(',');
+				if (5 < Prop.Length)
+				{
+					b4 = new string[Prop.Length];
+					for (byte i = 0; i < Prop.Length; i++)
+						b4[i] = "";
+				}
+				else Info($"Init():  {Fake7.Ini + "parms"}.Length {Prop.Length} < expected 6");
 			}
-			for (; i < Label.Length; i++)
-				Label[i] = "f" + i;
-			Attach();
+			else Info("Init():  missing " + Fake7.Ini + "parms");
 
-			FromArduino = pluginManager.GetPropertyValue(Ini + "rcv")?.ToString();
-			if (null == FromArduino || 0 == FromArduino.Length)
-				Info("Init(): missing " + Ini + "rcv");
+			string pill = pluginManager.GetPropertyValue(Fake7.Ini + "pill")?.ToString();
+			if (null != pill || 0 < pill.Length)
+			{													// launch serial port
 
-// launch serial ports
-
-			string null_modem = pluginManager.GetPropertyValue(Ini + "com")?.ToString();
-
-			if (null == null_modem || 0 == null_modem.Length)
-				Sports(Ini + "Custom Serial 'Fake8com' missing from F8.ini");
-			else
-			{
-				CustomSerial.DataReceived += Fake8receiver;
-				CustomSerial.NewLine = ";";
-				Fopen(CustomSerial, null_modem);
+				ongoing = true;
+				Arduino.DataReceived += AndroidDataReceived;
+				F7.Fopen(Arduino, pill);
 			}
+			else F7.Sports(Fake7.Ini + "Custom Serial 'F8pill' missing from F8.ini");
 		}																			// Init()
 	}
 }

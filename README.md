@@ -1,6 +1,6 @@
 
 ---
-Fake8:&nbsp; SimHub 8-bit helper serial plugin
+Fake8:&nbsp; SimHub 8-bit serial plugin
 ---
 
 As noted in [Arduino for STM32 Black 'n Blue Pills, ESP32-S[2,3] ](https://blekenbleu.github.io/Arduino/),  
@@ -9,52 +9,68 @@ As noted in [Arduino for STM32 Black 'n Blue Pills, ESP32-S[2,3] ](https://bleke
 - Plugin can log but not process received serial port messages from e.g. from Arduino.
 - Serial data is limited to 7 bits per character.
 
-This `Fake8` SimHub plugin connects to (Arduino) device serial ports,
-using 8 bit characters and executing C#,  
-working with SimHub's Custom Serial devices plugin
-via a **signed** [virtual com0com Null-modem](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html).  
-This leverages **SimHub Custom Serial devices** plugin's user interface:  
+This `Fake8` SimHub C# plugin connects to an STM32 Arduino USB COM port,
+using 8 bit characters and SimHub properties, some of which are from SimHub's Custom Serial device plugin messages  
+via a second serial port and  **signed** [virtual com0com Null-modem](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html).  
+This leverages the **SimHub Custom Serial devices** plugin user interface:  
 ![](Fake8.png)  
-... while much of the heavy lifting gets done by this `Fake8` plugin.  
-Sadly, `Custom Serial devices` user interface Settings are local to that plugin
-and inaccessible by `Fake8`.  
-Consequently, [the `Custom Serial devices` profile](https://raw.githubusercontent.com/blekenbleu/SimHub-profiles/main/Fake8.shsds)
- must send those control settings via `Fake8` Serial port.  
+... while most heavy lifting gets done by this `Fake8` plugin.  
+Sadly, `Custom Serial devices` user interface Settings are local to that plugin and inaccessible elsewhere.  
+Consequently, [a `Custom Serial devices` profile](https://raw.githubusercontent.com/blekenbleu/SimHub-profiles/main/Fake8.shsds)
+ messages control settings to a `COM8 com0com` null modem Serial port.  
 Overhead is minimized by using simple [NCalc](https://github.com/SHWotever/ncalc) expressions to generate setting change messages.  
 Unlike JavaScript, NCalc Update messages repeat even if unchanged unless explicitly conditional
  by [change()](https://github.com/SHWotever/SimHub/wiki/NCalc-scripting).  
-Incoming `Fake8` serial data to SimHub's **Custom Serial** plugin will generally combine Arduino and `Fake8` strings.
+Incoming `COM8` serial data to SimHub's **Custom Serial** plugin may combine Arduino and `Fake8` strings.
 
-`Fake8` to Arduino [**8-bit protocol**](https://github.com/blekenbleu/Arduino-Blue-Pill/blob/main/8-bit.md) *approximates* MIDI protocol, with:  
+`Fake8` to Arduino approximates MIDI protocol, with:  
 - only first message 8-bit characters having msb ==1
-- 3 msb of first message character are a command type
+- 7 lsb of first message character are a command and address
 - second character is 7-bit data
 - for some commands, that second character 7-bit data is count for appended 7-bit character array of values.  
-  One string command to echoes that string.  
+  One string command echoes that string.  
   One non-string command echoes that second character.  
   Another non-string command resets the Arduino run-time sketch.
-- for commands with 1 == second-most significant bit of first message character,  
-  other bits index Arduino device application-specific settings, such as
+- 5 lsb of first bytes may include Arduino sketch-specific pin or timer channel indices, including:  
   - setting **PWM** pin parameters, e.g.:&nbsp; frequency, % range, predistortion, PWM pin number, clock number
 
-This supports 73 commands:
-   - 1 single byte reset 0xBF
-   - 1 2-byte command with 12 data bits b'110', e.g. PWM %
-   - 8 3-byte messages with 16 data bits b'111', e.g. PWM microseconds * 50
-   - 32 2-byte commands with 7 data bits b'100'
-   - 31 n-byte commands with second byte count for following bytes b'101'
+[This 8-bit protocol supports 73 commands](https://github.com/blekenbleu/Arduino-Blue-Pill/blob/main/8-bit.md)  
 
-### Status 3 Mar 2023
+## Status 3 Mar 2023
 - plugin communicates both with SimHub Custom Serial plugin (via com0com) and STM32 Arduino
-   - [current Arduino sketch](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/Blue_ASCII)
-   merely echos ASCII hex for received bytes, confirming 8-bit communications
-### Status 5 Mar 2023
-- hiccup with processing on SimHub Custom Serial receive thread;&nbsp; added delegate back to main thread.  
-  Unable to find a *good* example;&nbsp; many add IMO superfluous threading and events.
-- next step will be adding [configurable PWM](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/PWM_FullConfiguration) to the Arduino sketch  
+   - current Arduino sketch merely echos ASCII hex for received bytes, confirming 8-bit communications
+- next step will be adding configurable PWM to the Arduino sketch  
   for e.g. PC fans and [**Direct Drive harness tension**](https://github.com/blekenbleu/Direct-Drive-harness-tension-tester) testing.
 ### Status 8 Mar 2023
 - skeletal [PWM_FullConfiguration](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/PWM_FullConfiguration) sketch implemented, along with F8reset in `Fake8.cs`  
+
+## Status 9 Mar 2023
+- unable to get both COM ports working robustly in a single plugin.   
+  Simply create properties from Custom Serial port messages in `Fake7` plugin;  
+  then, use those properties in `Fake8` plugin for Arduino.  
+  This will not impact game latency, since telemetry will not come thru Custom Serial plugin.
+- look into [building both plugins in a single project](https://stackoverflow.com/questions/3867113/visual-studio-one-project-with-several-dlls-as-output)  
+  [**search results**](https://duckduckgo.com/?q=visual+studio+multiple+%22dlls%22+in+one+solution)
+
+## Status 10 Mar 2023
+- The problem is Fake7 hanging on write back to Custom Serial via com0com;   
+  Read works ok, and and both Read and Write work to e.g. Arduio Serial Monitor.  
+  Changed F8.ini `Fake8rcv` setting to `f9` from `Arduino`, so that Fake7 could read a property that changes without Fake8.
+
+## Status 11 Mar 2023
+- Confirmed that Custom Serial `Incoming serial data` and com0com are by default incompatible;  
+  FWIW, Arduino serial terminal works fine on COM8 instead of SimHub's Custom Serial device...??!!  
+  finally got beyond `CustomSerial.Write(prop);` timeout by forcing com0com setting:  
+  `change CNCB0 PortName=COM2,EmuOverrun=yes,ExclusiveMode=no,cts=on,dsr=on,dcd=on`  
+  `EmuOverrun=yes` by itself did not suffice;&nbsp;  isolating essential setting is low priority.  
+- Both ports work;&nbsp; Fake8receiver() can call Fake7.CustomSerial.Write(),  
+  but needs exception handling (e.g. reopen)
+
+## Status 12 Mar 2023
+- Recover Arduino USM COM disconnect/reconnect events;  similar code for com0com implemented but untested.
+
+## Status 20 Mar 2023
+- Delegate fork merged to main.
 
 ## Problems encountered
 - SourceForge's `com0com` virtual null modem package **does not work on recent Windows 10 versions**.
@@ -66,8 +82,8 @@ This supports 73 commands:
        ![](Arbiter.png)  
 - `Arduino.DtrEnable = true;` is required [for C# to read from Arduino](https://forum.arduino.cc/t/serial-communication-with-c-program-serialdatareceivedeventhandler-doesnt-work/108564/3), but not for com0com.
 - Unable to restart Arduino sketch by toggling `Arduino.DtrEnable` and `Arduino.RtsEnable`.
-- had to launch com0com `setupc.exe` and run `command> reload` to unjam fake8.cs `CustomSerial.Write(Traffic[1]);`
-- sharing data among serial ports in C# seemingly defies explanation
+- Unable to get both COM ports working robustly in a single plugin.
+- SimHub Custom Serial device receiving (**Incoming serial data**) seems uniquely incompatible with `com0com`.  
 
 ## Configure a [`com0com` virtual null modem](https://files.akeo.ie/blog/com0com.7z)
 - Run as Adminstrator `com0com\setupc.exe`: &nbsp;   (see [com0com ReadMe](https://raw.githubusercontent.com/paulakg4/com0com/master/ReadMe) for instructions)
