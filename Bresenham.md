@@ -66,4 +66,18 @@ while (y <= stop && abs(error + run) < abs(abs(rise) - (error + run))
 }
 error = abs(rise) - (error + run);
 ```
-Better still: refactor for y errors when abs(slope) > 1.
+Even better:&nbsp; recode for y errors when abs(slope) > 1.  
+This enables consistent error accumulation for different rise and fall slopes.
+```
+int dy = error + rise;
+error = dy % run;
+dy /= run;
+if (abs(rise) <= abs(2 * error))
+{
+	error -= rise;
+	if (0 < dy)
+		dy ++;
+	else dy--;
+}
+y += dy;
+```
