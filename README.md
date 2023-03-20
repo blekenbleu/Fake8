@@ -17,26 +17,25 @@ This leverages the **SimHub Custom Serial devices** plugin user interface:
 ... while most heavy lifting gets done by this `Fake8` plugin.  
 Sadly, `Custom Serial devices` user interface Settings are local to that plugin and inaccessible elsewhere.  
 Consequently, [a `Custom Serial devices` profile](https://raw.githubusercontent.com/blekenbleu/SimHub-profiles/main/Fake8.shsds)
- messages control settings to a `COM8 com0com` null modem Serial port.  
+ sends control settings for processing by this plugin,  
+via a `COM8 com0com` null modem Serial port.  
 Overhead is minimized by using simple [NCalc](https://github.com/SHWotever/ncalc) expressions to generate setting change messages.  
 Unlike JavaScript, NCalc Update messages repeat even if unchanged unless explicitly conditional
  by [change()](https://github.com/SHWotever/SimHub/wiki/NCalc-scripting).  
 Incoming `COM8` serial data to SimHub's **Custom Serial** plugin may combine Arduino and `Fake8` strings.
 
-`Fake8` to Arduino approximates MIDI protocol, with:  
-- only first message 8-bit characters having msb ==1
-- 7 lsb of first message character are a command and address
-- second character is 7-bit data
-- for some commands, that second character 7-bit data is count for appended 7-bit character array of values.  
-  One string command echoes that string.  
-  One non-string command echoes that second character.  
-  Another non-string command resets the Arduino run-time sketch.
-- 5 lsb of first bytes may include Arduino sketch-specific pin or timer channel indices, including:  
-  - setting **PWM** pin parameters, e.g.:&nbsp; frequency, % range, predistortion, PWM pin number, clock number
+Inspired by MIDI, [**`Fake8` to Arduino 8-bit protocol supports 73 commands**](https://github.com/blekenbleu/Arduino-Blue-Pill/blob/main/8-bit.md):  
+- For [re]synchronization, only the first byte of each command has msb == 1
+- For 63 of 73 commands. 5 lsb of first byte is an Arduino sketch-specific command:  
+  - setting e.g. **PWM** parameters:&nbsp; (frequency, % range, predistortion, pin or clock number)
+  - second byte is either 7-bit data or count for appended 7-bit byte array of values.  
+    - One array command echoes that array.  
+    - One non-array command echoes that second byte.  
+- For 3-byte commands, 2 lsb of first byte are 2 msb of 16-bit data.
+- For a single 2-byte command, 5 lsb of first byte are 5 msb of 12-bit data.
+- A single 1-byte command restarts Arduino run-time sketch.
 
-[This 8-bit protocol supports 73 commands](https://github.com/blekenbleu/Arduino-Blue-Pill/blob/main/8-bit.md)  
-
-## Status 3 Mar 2023
+### Status 3 Mar 2023
 - plugin communicates both with SimHub Custom Serial plugin (via com0com) and STM32 Arduino
    - current Arduino sketch merely echos ASCII hex for received bytes, confirming 8-bit communications
 - next step will be adding configurable PWM to the Arduino sketch  
@@ -44,20 +43,20 @@ Incoming `COM8` serial data to SimHub's **Custom Serial** plugin may combine Ard
 ### Status 8 Mar 2023
 - skeletal [PWM_FullConfiguration](https://github.com/blekenbleu/Arduino-Blue-Pill/tree/main/PWM_FullConfiguration) sketch implemented, along with F8reset in `Fake8.cs`  
 
-## Status 9 Mar 2023
-- unable to get both COM ports working robustly in a single plugin.   
+### Status 9 Mar 2023
+- unable to get both COM ports working robustly in a single class.   
   Simply create properties from Custom Serial port messages in `Fake7` plugin;  
   then, use those properties in `Fake8` plugin for Arduino.  
   This will not impact game latency, since telemetry will not come thru Custom Serial plugin.
 - look into [building both plugins in a single project](https://stackoverflow.com/questions/3867113/visual-studio-one-project-with-several-dlls-as-output)  
   [**search results**](https://duckduckgo.com/?q=visual+studio+multiple+%22dlls%22+in+one+solution)
 
-## Status 10 Mar 2023
+### Status 10 Mar 2023
 - The problem is Fake7 hanging on write back to Custom Serial via com0com;   
   Read works ok, and and both Read and Write work to e.g. Arduio Serial Monitor.  
   Changed F8.ini `Fake8rcv` setting to `f9` from `Arduino`, so that Fake7 could read a property that changes without Fake8.
 
-## Status 11 Mar 2023
+### Status 11 Mar 2023
 - Confirmed that Custom Serial `Incoming serial data` and com0com are by default incompatible;  
   FWIW, Arduino serial terminal works fine on COM8 instead of SimHub's Custom Serial device...??!!  
   finally got beyond `CustomSerial.Write(prop);` timeout by forcing com0com setting:  
@@ -66,11 +65,11 @@ Incoming `COM8` serial data to SimHub's **Custom Serial** plugin may combine Ard
 - Both ports work;&nbsp; Fake8receiver() can call Fake7.CustomSerial.Write(),  
   but needs exception handling (e.g. reopen)
 
-## Status 12 Mar 2023
+### Status 12 Mar 2023
 - Recover Arduino USM COM disconnect/reconnect events;  similar code for com0com implemented but untested.
 
-## Status 20 Mar 2023
-- Delegate fork merged to main.
+### Status 20 Mar 2023
+- Delegate fork merged to main.&nbsp; Begin scheming for [Bresenham PWM modulation](Bresenham.md)  
 
 ## Problems encountered
 - SourceForge's `com0com` virtual null modem package **does not work on recent Windows 10 versions**.
@@ -82,7 +81,8 @@ Incoming `COM8` serial data to SimHub's **Custom Serial** plugin may combine Ard
        ![](Arbiter.png)  
 - `Arduino.DtrEnable = true;` is required [for C# to read from Arduino](https://forum.arduino.cc/t/serial-communication-with-c-program-serialdatareceivedeventhandler-doesnt-work/108564/3), but not for com0com.
 - Unable to restart Arduino sketch by toggling `Arduino.DtrEnable` and `Arduino.RtsEnable`.
-- Unable to get both COM ports working robustly in a single plugin.
+- Unable to get both COM ports working robustly in a single class.
+- Working example using delegate for data from C# Serial Port `DataReceived` thread to invoking thread.
 - SimHub Custom Serial device receiving (**Incoming serial data**) seems uniquely incompatible with `com0com`.  
 
 ## Configure a [`com0com` virtual null modem](https://files.akeo.ie/blog/com0com.7z)
@@ -126,16 +126,24 @@ command> list
 ```
 Seemingly, `PlugInMode=yes` and `ExclusiveMode=yes` make no difference..
 
-### potentially useful C# serial port references
+### marginally useful C# serial port references
 
 - [Serial Port Communication](https://www.codeproject.com/Tips/361285/Serial-Port-Communication) *codeproject.com* "Although the code is self explanatory, I will explain little."
+  - uses `Invoke()`; closes serial port after each read
 - [Serial Comms in C# for Beginners](https://www.codeproject.com/Articles/678025/Serial-Comms-in-Csharp-for-Beginners) *codeproject.com* useful, ignoring hardware pin handling
-- [Improving the Performance of Serial Ports Using C#](https://www.codeproject.com/Articles/110670/Improving-the-Performance-of-Serial-Ports-Using-C) *codeproject.com*
+  - mostly about UI;&nbsp; also uses `Invoke()`.
+- [Improving the Performance of Serial Ports Using C#](https://www.codeproject.com/Articles/110670/Improving-the-Performance-of-Serial-Ports-Using-C) *codeproject.com*a
+  - handshaking protocol;&nbsp; multiple threads.
 - [Arduino, C#, and Serial Interface](https://www.codeproject.com/Articles/473828/Arduino-Csharp-and-Serial-Interface) *codeproject.com* 
-- [Close Serial COM Port safely in C#](https://www.codeproject.com/Questions/281222/Close-Serial-COM-Port-safely-in-Csharp) *codeproject.com*
+  - Uses, but does not implement `NewWeatherDataReceived` event handler.
 - [Top 5 SerialPort Tips](https://learn.microsoft.com/en-us/archive/blogs/bclteam/top-5-serialport-tips-kim-hamilton)
+  - Inapplicable to `ReadExisting`;&nbsp;  potential dealock on `Close()`.
 - [SerialPort Encoding](https://learn.microsoft.com/en-us/archive/blogs/bclteam/serialport-encoding-ryan-byington)
+  - Instead, use bytes...
 - [learn SerialPort Class](https://learn.microsoft.com/en-us/dotnet/api/system.io.ports.serialport?view=dotnet-plat-ext-7.0)
+  -  uses threads and no event handlers
 - [*instructables* Serial Port Programming With .NET](https://www.instructables.com/Serial-Port-Programming-With-NET/)
+  - *very* simplistic, no data handling;&nbsp; does not use passed object in `SerialDataReceivedEventHandler`,
 - [Communicate with Serial Port in C#](https://www.c-sharpcorner.com/UploadFile/eclipsed4utoo/communicating-with-serial-port-in-C-Sharp/) *c-sharp corner*
+  - Introduces delegate for cross-thread data transfer and a read thread, which `SerialDataReceivedEventHandler` would make redundant.
 - [**Signed com0com** Null-modem emulator](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) - Link for [Installing;&nbsp; FAQs](https://raw.githubusercontent.com/paulakg4/com0com/master/ReadMe)
