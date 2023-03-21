@@ -69,7 +69,7 @@ Inspired by MIDI, [**`Fake8` to Arduino 8-bit protocol supports 73 commands**](h
 - Recover Arduino USM COM disconnect/reconnect events;  similar code for com0com implemented but untested.
 
 ### Status 20 Mar 2023
-- Delegate fork merged to main.&nbsp; Begin scheming for [Bresenham PWM modulation](Bresenham.md)  
+- Delegate fork merged to main.
 
 ### Status 21 Mar 2023
 - Write() timeout recovery for Custom Serial
