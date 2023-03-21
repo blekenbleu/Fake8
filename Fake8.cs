@@ -41,7 +41,9 @@ namespace Fake8plugin
 
 		static internal bool Recover(SerialPort port)
 		{
-			if (! port.IsOpen)
+			if (port.IsOpen)
+				return true;
+			else
 			{
 				try
 				{
@@ -94,6 +96,7 @@ namespace Fake8plugin
 				return;
 			}
 			once = true;
+			Recover(Fake7.CustomSerial);
 				
 			for (byte i = 0; i < Prop.Length; i++)
 			{

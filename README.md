@@ -71,6 +71,14 @@ Inspired by MIDI, [**`Fake8` to Arduino 8-bit protocol supports 73 commands**](h
 ### Status 20 Mar 2023
 - Delegate fork merged to main.&nbsp; Begin scheming for [Bresenham PWM modulation](Bresenham.md)  
 
+### Status 21 Mar 2023
+- Write() timeout recovery for Custom Serial
+  - Arduino queues a power-on message
+  - SimHub initializes Fake8 before Custom Serial
+    - Fake8 Arduino message Write() to Custom Serial times out.
+    - could increase Write() timeout, but recovery is generally wanted.
+  - Custom Serial port now gets checked at each DataUpdate()
+
 ## Problems encountered
 - SourceForge's `com0com` virtual null modem package **does not work on recent Windows 10 versions**.
    - get [Pete Batard's](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) **signed** [`com0com` driver](https://files.akeo.ie/blog/com0com.7z).
