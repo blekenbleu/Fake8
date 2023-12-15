@@ -6,7 +6,7 @@ using System.IO.Ports;
 using System.Threading;
 using System.Timers;
 
-namespace Fake8plugin
+namespace blekenbleu
 {
 	// these must be public
 	public class FakeSettings // saved while plugin restarts

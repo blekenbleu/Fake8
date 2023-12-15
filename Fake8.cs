@@ -19,7 +19,7 @@ using System.Timers;
  ; f9:
  */
 
-namespace Fake8plugin
+namespace blekenbleu
 {
 	public class Fake8		// handle real Arduino USB COM por with 8-bit data
 	{
