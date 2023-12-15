@@ -25,11 +25,11 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartAction>Program</StartAction>
-    <StartProgram>E:\my\Sim\SimHub\SimHub\SimHubWPF.exe</StartProgram>
+    <StartProgram>.\SimHubWPF.exe</StartProgram>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
     <StartAction>Program</StartAction>
-    <StartProgram>E:\my\Sim\SimHub\SimHub\SimHubWPF.exe</StartProgram>
+    <StartProgram>.\SimHubWPF.exe</StartProgram>
   </PropertyGroup>
   <PropertyGroup>
     <ProjectView>ShowAllFiles</ProjectView>
