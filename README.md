@@ -9,9 +9,10 @@ As noted in [Arduino for STM32 Black 'n Blue Pills, ESP32-S[2,3] ](https://bleke
 - Plugin can log but not process received serial port messages e.g. from Arduino.
 - Serial data is limited to 7 bits per character.
 
-This `Fake8` SimHub C# plugin connects to an STM32 Arduino USB COM port,
-using 8 bit characters and SimHub properties, some of which are from SimHub's Custom Serial device plugin messages  
-via a second serial port and  **signed** [virtual com0com Null-modem](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html).  
+This `Fake8` SimHub C# plugin connects to an STM32 Arduino USB COM port,  
+using 8 bit characters and SimHub properties,  
+some of which are from SimHub's Custom Serial device plugin messages  
+via a second serial port and  **signed** [virtual `com0com` Null-modem](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html).  
 This leverages the **SimHub Custom Serial devices** plugin user interface:  
 ![](Fake8.png)  
 ... while most heavy lifting gets done by this `Fake8` plugin.  
@@ -36,7 +37,7 @@ Inspired by MIDI, [**`Fake8` to Arduino 8-bit protocol supports 73 commands**](h
 - A single 1-byte command restarts Arduino run-time sketch.
 
 ### Status 3 Mar 2023
-- plugin communicates both with SimHub Custom Serial plugin (via com0com) and STM32 Arduino
+- plugin communicates both with SimHub Custom Serial plugin (via `com0com`) and STM32 Arduino
    - current Arduino sketch merely echos ASCII hex for received bytes, confirming 8-bit communications
 - next step will be adding configurable PWM to the Arduino sketch  
   for e.g. PC fans and [**Direct Drive harness tension**](https://github.com/blekenbleu/Direct-Drive-harness-tension-tester) testing.
@@ -52,21 +53,22 @@ Inspired by MIDI, [**`Fake8` to Arduino 8-bit protocol supports 73 commands**](h
   [**search results**](https://duckduckgo.com/?q=visual+studio+multiple+%22dlls%22+in+one+solution)
 
 ### Status 10 Mar 2023
-- The problem is Fake7 hanging on write back to Custom Serial via com0com;   
+- The problem is Fake7 hanging on write back to Custom Serial via `com0com`;   
   Read works ok, and and both Read and Write work to e.g. Arduino Serial Monitor.  
-  Changed F8.ini `Fake8rcv` setting to `f9` from `Arduino`, so that Fake7 could read a property that changes without Fake8.
+  Changed F8.ini `Fake8rcv` setting to `f9` from `Arduino`,  
+  allowing Fake7 to read a property that changes without Fake8.
 
 ### Status 11 Mar 2023
-- Confirmed that Custom Serial `Incoming serial data` and com0com are by default incompatible;  
+- Confirmed that Custom Serial `Incoming serial data` and `com0com` are by default incompatible;  
   FWIW, Arduino serial terminal works fine on COM8 instead of SimHub's Custom Serial device...??!!  
-  finally got beyond `CustomSerial.Write(prop);` timeout by forcing com0com setting:  
+  finally got beyond `CustomSerial.Write(prop);` timeout by forcing `com0com` setting:  
   `change CNCB0 PortName=COM2,EmuOverrun=yes,ExclusiveMode=no,cts=on,dsr=on,dcd=on`  
   `EmuOverrun=yes` by itself did not suffice;&nbsp;  isolating essential setting is low priority.  
 - Both ports work;&nbsp; Fake8receiver() can call Fake7.CustomSerial.Write(),  
   but needs exception handling (e.g. reopen)
 
 ### Status 12 Mar 2023
-- Recover Arduino USM COM disconnect/reconnect events;  similar code for com0com implemented but untested.
+- Recover Arduino USM COM disconnect/reconnect events;  similar code for `com0com` implemented but untested.
 
 ### Status 20 Mar 2023
 - Delegate fork merged to main.
@@ -82,12 +84,12 @@ Inspired by MIDI, [**`Fake8` to Arduino 8-bit protocol supports 73 commands**](h
 ## Problems encountered
 - SourceForge's `com0com` virtual null modem package **does not work on recent Windows 10 versions**.
    - get [Pete Batard's](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) **signed** [`com0com` driver](https://files.akeo.ie/blog/com0com.7z).
-   - an alternative `may be` [test-signing](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/the-testsigning-boot-configuration-option) the SourceForge `com0com` driver.
+   - an alternative *may be* [test-signing](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/the-testsigning-boot-configuration-option) the SourceForge `com0com` driver.
 - Trying to use `com0com` virtual COM ports in C# **fails** *unless its PortName begins with* `COM`.  
     - Free 'busy' COM port numbers using [COM Name Arbiter Tool](https://www.uwe-sieber.de/misc_tools_e.html#com_ports)  
        Run as Admin, uncheck wanted and currently unused ports:  
        ![](Arbiter.png)  
-- `Arduino.DtrEnable = true;` is required [for C# to read from Arduino](https://forum.arduino.cc/t/serial-communication-with-c-program-serialdatareceivedeventhandler-doesnt-work/108564/3), but not for com0com.
+- `Arduino.DtrEnable = true;` is required [for C# to read from Arduino](https://forum.arduino.cc/t/serial-communication-with-c-program-serialdatareceivedeventhandler-doesnt-work/108564/3), but not for `com0com`.
 - Unable to restart Arduino sketch by toggling `Arduino.DtrEnable` and `Arduino.RtsEnable`.
 - Unable to get both COM ports working robustly in a single class.
 - Working example using delegate for data from C# Serial Port `DataReceived` thread to invoking thread.
@@ -151,11 +153,20 @@ Seemingly, `PlugInMode=yes` and `ExclusiveMode=yes` make no difference..
 - [learn SerialPort Class](https://learn.microsoft.com/en-us/dotnet/api/system.io.ports.serialport?view=dotnet-plat-ext-7.0)
   -  uses threads and no event handlers
 - [*instructables* Serial Port Programming With .NET](https://www.instructables.com/Serial-Port-Programming-With-NET/)
-  - *very* simplistic, no data handling;&nbsp; does not use passed object in `SerialDataReceivedEventHandler`,
+  - *very* simplistic, no data handling;&nbsp;  
+    does not use passed object in `SerialDataReceivedEventHandler`, which is presumably a `callback()`...
 - [Communicate with Serial Port in C#](https://www.c-sharpcorner.com/UploadFile/eclipsed4utoo/communicating-with-serial-port-in-C-Sharp/) *c-sharp corner*
-  - Introduces delegate for cross-thread data transfer and a read thread, which `SerialDataReceivedEventHandler` would make redundant.
-- [**Signed com0com** Null-modem emulator](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) - Link for [Installing;&nbsp; FAQs](https://raw.githubusercontent.com/paulakg4/com0com/master/ReadMe)
+  - Introduces delegate for cross-thread data transfer and a read thread,  
+- [**Using a C# Application to Communicate with an Arduino**](https://www.allaboutcircuits.com/technical-articles/csharp-windows-application-for-arduino/)
+  - Far better than usual comments and descriptions;&nbsp; very modular and simple code.
+- [**Signed `com0com`** Null-modem emulator](https://pete.akeo.ie/2011/07/com0com-signed-drivers.html) - Link for [Installing;&nbsp; FAQs](https://raw.githubusercontent.com/paulakg4/com0com/master/ReadMe)
 
 ### C# delegate and callback words of wisdom
 - callback()s run in other threads, can set only statics while invoked
 	- have some static class for handling callback updates asynchronously
+
+### Future madness
+- STM32 Blue Pills are relatively cheap and easy by BluePill
+    - configuring as other than COM port, not so much
+- **Merge Fake8 with MIDIio**, so that e.g. asynchronous serial reads from Blue Pill  
+  can be directly written to e.g. vJoy or MIDI
